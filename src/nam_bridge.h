@@ -1,1 +1,0 @@
-//Create a NAM instance, and return an opaque pointer
