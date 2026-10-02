@@ -1,0 +1,9 @@
+C:/Users/cwlau/vs-code-workspace/GuitarPedalDev/extensions/portaudio/build/CMakeFiles/portaudio.dir
+C:/Users/cwlau/vs-code-workspace/GuitarPedalDev/extensions/portaudio/build/CMakeFiles/portaudio_static.dir
+C:/Users/cwlau/vs-code-workspace/GuitarPedalDev/extensions/portaudio/build/CMakeFiles/uninstall.dir
+C:/Users/cwlau/vs-code-workspace/GuitarPedalDev/extensions/portaudio/build/CMakeFiles/edit_cache.dir
+C:/Users/cwlau/vs-code-workspace/GuitarPedalDev/extensions/portaudio/build/CMakeFiles/rebuild_cache.dir
+C:/Users/cwlau/vs-code-workspace/GuitarPedalDev/extensions/portaudio/build/CMakeFiles/list_install_components.dir
+C:/Users/cwlau/vs-code-workspace/GuitarPedalDev/extensions/portaudio/build/CMakeFiles/install.dir
+C:/Users/cwlau/vs-code-workspace/GuitarPedalDev/extensions/portaudio/build/CMakeFiles/install/local.dir
+C:/Users/cwlau/vs-code-workspace/GuitarPedalDev/extensions/portaudio/build/CMakeFiles/install/strip.dir

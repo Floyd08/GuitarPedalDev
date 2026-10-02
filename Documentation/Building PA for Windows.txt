@@ -1,0 +1,13 @@
+I have the PA source code, but it must be built into a dll so it can be used by CMake to when I compile any file that includes a PA callback function. 
+
+Claude provided the following Powershell commands, that must be run from the main project directory: 
+
+Remove-Item -Recurse -Force extensions\portaudio\build
+cmake -S extensions/portaudio -B extensions/portaudio/build -G "MinGW Makefiles" -DPA_USE_DS=OFF -DPA_USE_WASAPI=OFF -DPA_USE_WDMKS=OFF
+cmake --build extensions/portaudio/build
+
+the above disables some of the backend stuff for PA, and has it run with WMME, and while this works it creates huge latency in the signal. 
+
+cmake -S extensions/portaudio -B extensions/portaudio/build -G "MinGW Makefiles" -DPA_USE_DS=OFF -DPA_USE_WASAPI=OFF -DPA_USE_WDMKS=OFF -DPA_USE_ASIO=ON -DASIOSDK_ROOT_DIR="C:\Users\cwlau\vs-code-workspace\GuitarPedalDev\extensions\portaudio\asiosdk"
+
+

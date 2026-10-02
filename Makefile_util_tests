@@ -1,0 +1,24 @@
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -Iextensions/BiquadFilter
+
+SRC = src/Util/util_tests.c src/Util/dsp_tools.c extensions/BiquadFilter/Biquad.c
+
+#turn the source list into an object list
+OBJS = $(SRC:.c=.o)
+
+TARGET = util_tests.exe
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
+
+# Compilation: Compiles each individual .c file into a .o file
+# $< is the source file (.c) and $@ is the target object file (.o)
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Cleanup: Updated to use native PowerShell commands
+.PHONY: clean
+clean:
+	powershell -Command "Remove-Item -ErrorAction SilentlyContinue '$(TARGET)', $(foreach obj,$(OBJS),'$(obj)')"
