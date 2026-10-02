@@ -54,6 +54,7 @@ float abs_fuzz(float gain, float signal);
 void tanh_distortion_buffer(float* up_buf, int buf_size, int up_factor);
 
 
+//old definition of distortion_engine. Agrees with the old version of distortion process and init that are still in distortion_effects.c
 
 // typedef struct {
 // 	distortion_effect d_effect;

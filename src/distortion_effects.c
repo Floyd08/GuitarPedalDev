@@ -37,14 +37,12 @@ void process_distortion(distortion_engine* d_engine, float *in_buf, float *out_b
 	//process distortion without oversampling
 	for(int i = 0, j = 0; i < d_engine->buffer_size; i++) {
 		
-		//printf("processing sample: %d\n", i);
 		sample = in_buf[i];
 		for (int n = 0; n < d_engine->num_stages; n++) {
 			//call the nth distortion_stage to process the ith sample
 			sample = process_distort_stage(d_engine->d_stages[n], sample);
 		}
 
-		//printf("outputing stereo\n");
 		//output stereo
 		out_buf[j++] = sample;
 		out_buf[j++] = sample;
@@ -63,7 +61,6 @@ float process_distort_stage(distortion_stage* d_stage, float sample) {
 
 	//loop through the pre distortion filters
 	for (int i = 0; i < d_stage->num_pre_filters; i++) {
-		//printf("applying filter:%d\n", i);
 		output = bq_process(d_stage->pre_filters[i], output);
 	}
 
@@ -83,7 +80,6 @@ void distortion_free(distortion_engine* d_engine) {
 	bq_destroy(d_engine->alias_filter);
 
 	for (int i = 0; i < d_engine->num_stages; i++) {
-
 		distortion_stage_free(d_engine->d_stages[i]);
 	}
 
@@ -93,12 +89,10 @@ void distortion_free(distortion_engine* d_engine) {
 void distortion_stage_free(distortion_stage* d_stage) {
 
 	for (int i = 0; i < d_stage->num_pre_filters; i++) {
-		//printf("applying filter:%d\n", i);
 		bq_destroy(d_stage->pre_filters[i]);
 	}
 
 	for (int i = 0; i < d_stage->num_post_filters; i++) {
-		//printf("applying filter:%d\n", i);
 		bq_destroy(d_stage->post_filters[i]);
 	}
 

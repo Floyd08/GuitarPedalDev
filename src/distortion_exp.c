@@ -1,6 +1,12 @@
 #include "distortion_effects.h"
 #include "distortion_exp.h"
 
+/*
+*	This module is intended as a laboratory, to build and test distortion effects 
+*	without concern for latency in the callback or extensibility of design
+*/
+
+
 void exp_distortion_init(exp_distortion_engine* d_engine, distortion_effect distort_func, float gain, int up_factor, int sample_rate, int buffer_size, float* up_buf) {
 
 	//d_engine->alias_filter = alias_init(up_factor, sample_rate);

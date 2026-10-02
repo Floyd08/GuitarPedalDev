@@ -8,8 +8,6 @@
 #include "distortion_effects.h"
 #include "distortion_exp.h"
 
-float mono_output;                                      //to hold processed output before it is duplicated for stereo output
-
 static int callback(const void *input, void *output, unsigned long frame_count,
                      const PaStreamCallbackTimeInfo *time_info,
                      PaStreamCallbackFlags status_flags, void *user_data) 
@@ -69,9 +67,8 @@ static int callback(const void *input, void *output, unsigned long frame_count,
 	return paContinue;
 }
 
-static PaDeviceIndex find_device_by_name_and_api(const char *name_substring,
-                                                    int want_input,
-                                                    PaHostApiTypeId api_type) {
+static PaDeviceIndex find_device_by_name_and_api(const char *name_substring, int want_input, PaHostApiTypeId api_type) {
+
     int num_devices = Pa_GetDeviceCount();
     for (int i = 0; i < num_devices; i++) {
         
@@ -136,10 +133,9 @@ int main(void) {
     user_data[0] = &d_engine;
    
 
-
     PaStream *stream;
-    PaError err = Pa_OpenStream(&stream, &in_params, &out_params, SAMPLE_RATE,
-                                    FRAMES_PER_BUFFER, paClipOff, callback, user_data);
+    PaError err = Pa_OpenStream(&stream, &in_params, &out_params, SAMPLE_RATE, FRAMES_PER_BUFFER, paClipOff, callback, user_data);
+
     if (err != paNoError) {
         fprintf(stderr, "Pa_OpenStream failed: %s\n", Pa_GetErrorText(err));
         Pa_Terminate();
@@ -149,13 +145,12 @@ int main(void) {
     Pa_StartStream(stream);
 
     const PaStreamInfo *stream_info = Pa_GetStreamInfo(stream);
-    printf("Using ASIO. Actual input latency: %.4f s, output latency: %.4f s\n",
-           stream_info->inputLatency, stream_info->outputLatency);
+    printf("Using ASIO. Actual input latency: %.4f s, output latency: %.4f s\n", stream_info->inputLatency, stream_info->outputLatency);
     printf("Passing audio straight through. Press Enter to stop.\n");
     getchar();
 
     //free effect models here
-    //distortion_free(&d_engine);
+    distortion_free(&d_engine);
 
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
