@@ -8,7 +8,7 @@ Application structure in brief:
 pedal_processor.c is where it all happens. It has a main and a callback function. Main initializes everything needed for Audio processing, finds my audio interface and gets its details from the OS, configures the audio stream, and then starts it.
 
 
-callback runs repeatedly as audio arrives. It hands off pointers to input and output buffers to a series of processing objects. Right now just two, a distortion effect and an EQ. Long term it should be possible
+callback runs repeatedly as audio arrives. It hands off pointers to input and output buffers to a series of processing objects. Right now just two, a distortion effect and an EQ.
 
 
 distortion_effects handles the creation and initialization of a distortion engine object. This object takes a complete audio buffer and handles any processing that needs to happen on the entire buffer(like oversampling). The engine handles any buffer level processing, and then loops through a set of distortion_stages that process the signal sample-by-sample
