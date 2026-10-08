@@ -1,0 +1,13 @@
+#gitignore file for GuitarPedalDev
+
+Procedural stuff.txt
+ignore.txt
+scope.exe
+extensions/tube_preamp
+src/AC30
+src/ui/*
+!src/ui/control_panel.py
+src/util/sine_udp.c
+src/util/sine_udp.h
+src/util/sine_udp.exe
+*.o

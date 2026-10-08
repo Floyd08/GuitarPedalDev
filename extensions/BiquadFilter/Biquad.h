@@ -33,6 +33,8 @@ biquad* bq_new(int filter_type,
 				float dbGain,
 				int sample_rate);
 
+void bq_update(biquad* filter, int filter_type, float frequency, float Q, float dbGain, int sample_rate);
+
 float bq_process(biquad* bq, float input);
 
 void bq_destroy(biquad* bq);

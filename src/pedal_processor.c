@@ -1,12 +1,27 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <stdatomic.h>
 #include <windows.h>
 #include <portaudio.h>
 #include <pa_asio.h>
 #include "pedal_processor.h"
+#include "ui_listener.h"
 #include "distortion_effects.h"
+#include "EQ_effects.h"
 #include "distortion_exp.h"
+
+//global variables, to cache the current value of effects parameters
+
+float current_volume;
+float current_gain;
+float current_bias;
+float current_bass;
+float current_mid;
+float current_treble;
+float current_bass_freq;
+float current_mid_freq;
+float current_treble_freq;
 
 static int callback(const void *input, void *output, unsigned long frame_count,
                      const PaStreamCallbackTimeInfo *time_info,
@@ -24,6 +39,19 @@ static int callback(const void *input, void *output, unsigned long frame_count,
     //     fprintf(stderr, "Glitch flags set! flags=0x%lx\n", (unsigned long)status_flags);
     // }
 
+    //Read atomic variables - these values are set by UI components
+    //float m_volume = atomic_load_explicit(&master_volume, memory_order_relaxed);
+
+    float m_volume = get_volume();
+    float m_gain = get_gain();
+    float m_bias = get_bias();
+    float m_bass = get_bass_gain();
+    float m_mid = get_mid_gain();
+    float m_treble = get_treble_gain();
+    float m_bass_freq = get_bass_freq();
+    float m_mid_freq = get_mid_freq();
+    float m_treble_freq = get_treble_freq();
+
 	//const float *in = (const float *)input;
     float* in = (float*)input;
     float* out = (float*)output;
@@ -31,7 +59,6 @@ static int callback(const void *input, void *output, unsigned long frame_count,
     //cast user data to an arrray of objects so I can cast them to the needed type below
     void** model_array = (void**)user_data;
 
-    //Could this check be causing the static?
     if (in == NULL) {
 
 			//fprintf(stderr, "silence detected.\n");
@@ -42,13 +69,62 @@ static int callback(const void *input, void *output, unsigned long frame_count,
             	*out++ = SILENCE;
 				i++;
 			}
-			return paContinue;   
+			return paContinue;
     }
     
+    if (current_volume != m_volume) {
+        current_volume = m_volume;
+    }
+    if (current_gain != m_gain) {
+        set_distort_gain((distortion_engine*)model_array[0], m_gain);
+        current_gain = m_gain;
+        printf("gain updated to: %f\n", current_gain);
+    }
+    else if (current_bias != m_bias) {
+        set_distort_bias((distortion_engine*)model_array[0], m_bias);
+        current_bias = m_bias;
+        printf("bias updated to: %f\n", current_bias);
+    }
+    else if (current_bass != m_bass) {
+        EQ_update_filter_gain( (EQ_engine*)model_array[1], m_bass, LOWSHELF);
+        current_bass = m_bass;
+        printf("bass gain updated to: %f\n", current_bass);
+    }
+    else if (current_mid != m_mid) {
+        EQ_update_filter_gain((EQ_engine*)model_array[1], m_mid, PEAK);
+        current_mid = m_mid;
+        printf("mid gain updated to: %f\n", current_mid);
+    }
+    else if (current_treble != m_treble) {
+        EQ_update_filter_gain((EQ_engine*)model_array[1], m_treble, HIGHSHELF);
+        current_treble = m_treble;
+        printf("treble gain updated to: %f\n", current_treble);
+    }
+    else if (current_bass_freq != m_bass_freq) {
+        EQ_update_filter_centre((EQ_engine*)model_array[1], m_bass_freq, LOWSHELF);
+        current_bass_freq = m_bass_freq;
+        printf("bass freq updated to: %f\n", m_bass_freq);
+    }
+    else if (current_mid_freq != m_mid_freq) {
+        EQ_update_filter_centre((EQ_engine*)model_array[1], m_mid_freq, PEAK);
+        current_mid_freq = m_mid_freq;
+        printf("mid freq updated to: %f\n", m_mid_freq);
+    }
+    else if (current_treble_freq != m_treble_freq) {
+        EQ_update_filter_centre((EQ_engine*)model_array[1], m_mid_freq, HIGHSHELF);
+        current_treble_freq = m_treble_freq;
+        printf("treble freq updated to: %f\n", m_treble_freq);
+    }
+
     //process the entire input buffer
     //passthrough_buffer(FRAMES_PER_BUFFER, in, out);
     //process_distortion_exp1((exp_distortion_engine*)model_array[0], in, out);
     process_distortion( (distortion_engine*)model_array[0], in, out );
+    process_EQ( (EQ_engine*)model_array[1], out, out, FRAMES_PER_BUFFER);
+
+    //set master volume and process into stereo
+    set_volume(current_volume, out, FRAMES_PER_BUFFER);
+    mono_to_stereo(out, FRAMES_PER_BUFFER);
 
     //Measures Latency
     QueryPerformanceCounter(&end);
@@ -112,26 +188,42 @@ int main(void) {
         .sampleFormat = paFloat32,
         .suggestedLatency = out_info->defaultLowOutputLatency,
     };
-    
-    /*
-    Until I have a better idea, any initialization needed for effects or Amp modeling will happen below this comment
-    So that any needed pointers can be passed into the callback function when the stream is opened
-    */
 
     //Initialize effect or filter parameters
-    int up_sampling_factor = 2;
+    int up_sampling_factor = 1;
     float upsampling_buffer[FRAMES_PER_BUFFER * up_sampling_factor];             //If the input were not Mono, we'd need to take the frame size into account here as well
 
     //Initialize model objects
     // exp_distortion_init(&d_engine, d_effect, 5, up_sampling_factor, SAMPLE_RATE, FRAMES_PER_BUFFER, upsampling_buffer);
     distortion_engine d_engine;
     build_fav_distort_1(&d_engine, up_sampling_factor, SAMPLE_RATE, FRAMES_PER_BUFFER, upsampling_buffer);
+    EQ_engine eq_engine;
+    EQ_init(&eq_engine, SAMPLE_RATE);
 
     //build an array of pointers to model objects, to pass in with user_data
     //the array MUST be in the order in which the signal is meant to be processed
     void* user_data[NUM_EFFECTS];
     user_data[0] = &d_engine;
+    user_data[1] = &eq_engine;
+
+    //Set global caching parameters
+    current_volume = 0.5;
+    current_gain = 0.5;
+    current_bias = 0.5;
+    current_bass = 0.5;
+    current_mid = 0.5;
+    current_treble = 0.5;
+    current_mid_freq = 0.5;
    
+    /*
+    *   Next we initialize the listener thread. This thread listens from control signals from the UI components
+    *   and update global effects parameters with atomic writes
+    */
+
+    if (start_control_listener() != 0) {
+        fprintf(stderr, "Could not start the control listener (port 9001 in use?)\n");
+        return 1;
+    }
 
     PaStream *stream;
     PaError err = Pa_OpenStream(&stream, &in_params, &out_params, SAMPLE_RATE, FRAMES_PER_BUFFER, paClipOff, callback, user_data);
@@ -149,8 +241,12 @@ int main(void) {
     printf("Passing audio straight through. Press Enter to stop.\n");
     getchar();
 
+    //stop UI listener thread
+    stop_control_listener();
+
     //free effect models here
     distortion_free(&d_engine);
+    EQ_free(&eq_engine);
 
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
@@ -158,12 +254,6 @@ int main(void) {
     
     return 0;
 }
-
-/* 
-Functions developed below are either experimental, or WIP.
-any finished functions should be moved to a separate source file
-the only exception are those few utilities present for testing purposes
-*/
 
 float passthrough(float signal) {
 
@@ -181,6 +271,31 @@ void passthrough_buffer(int buf_size, float* in_buf, float* out_buf) {
         *out_buf++ = mono_output;
         *out_buf++ = mono_output;
         i++;
+    }
+}
+
+void set_volume(float volumn_factor, float *out_buf, int buffer_size) {
+
+    int i = 0;
+    while (i < buffer_size) {
+        out_buf[i] = out_buf[i] * volumn_factor;
+        i++;
+    }
+}
+
+//takes the output buffer in a mono state. Works back through the array, duplicating the mono input
+void mono_to_stereo(float* out_buffer, int mono_size) {
+
+    int stereo_length = mono_size * 2;
+    int i = mono_size - 1, j = stereo_length - 1;       //set i to the index of the last mono sample in the buffer, set j to the last index of the buffer
+
+    while (i > 0) {
+
+        out_buffer[j] = out_buffer[i];
+        j--;
+        out_buffer[j] = out_buffer[i];
+        j--; 
+        i--;
     }
 }
 
@@ -206,62 +321,3 @@ float simple_soft_clipping(float drive, float signal) {
 
     return tanhf(driven);
 }
-
-// A space for stock distortion configs
-void build_fav_distort_1(distortion_engine* d_engine, int up_factor, int sample_rate, int buffer_size, float* up_buf) {
-
-    // initialize distortion stages
-	static distortion_stage d_stage1;
-    static distortion_stage d_stage2;
-
-    //initialize filters
-    static biquad* hp1;
-    hp1 = bq_new(HIGHPASS, 160, 0.7071, 0, sample_rate);
-    static biquad* hp2;
-    hp2 = bq_new(HIGHPASS, 80, 0.7071, 0, sample_rate);
-	static biquad* pk1;
-    pk1 = bq_new(PEAK, 1500, 0.7071, 2.5119, sample_rate);
-    static biquad* pk2;
-    pk2 = bq_new(PEAK, 1000, 1, 2.5119, sample_rate);
-    static biquad* lp1;
-    lp1 = bq_new(LOWPASS, 3000, 0.7071, 0, sample_rate);
-    static biquad* lp2;
-    lp2 = bq_new(LOWPASS, 6000, 0.7071, 0, sample_rate);
-
-    //stack filters
-    static biquad* pre_filters1[3];
-    pre_filters1[0] = hp1;
-    pre_filters1[1] = lp1;
-    pre_filters1[2] = pk1;
-    distortion_stage_init(&d_stage1, pre_filters1, 3, 0.0f, 1.0f, tanh_distortion, NULL, 0);
-
-    static biquad* pre_filters2[3];
-    pre_filters2[0] = hp2;
-    pre_filters2[1] = lp2;
-    pre_filters2[2] = pk2;
-    distortion_stage_init(&d_stage2, pre_filters2, 3, 0.25f, 5.0f, tanh_distortion, NULL, 0);
-
-    //stack distortion stages
-    static distortion_stage* d_stages[2];
-    d_stages[0] = &d_stage1;
-    d_stages[1] = &d_stage2;
-
-    distortion_init(d_engine, d_stages, 2, up_factor, sample_rate, buffer_size, up_buf);
-}
-
-
-//code saved below is for reference purposes, or will be added back above later
-
-// AC_normal_channel norm_chan;
-    // normal_channel_init(&norm_chan, SAMPLE_RATE);
-    // AC_poweramp pow_amp;
-    // poweramp_init(&pow_amp, SAMPLE_RATE);
-    // cabinet_model cab_mod;
-    // cabinet_model_init(&cab_mod);
-    // cabinet_model_loadIR(&cab_mod, vox_2x12_ir_data, VOX_IR_LENGTH);
-
-
-//void* user_data[NUM_EFFECTS];
-    //user_data[0] = &norm_chan;
-    //user_data[1] = &pow_amp;
-    //user_data[2] = &cab_mod;

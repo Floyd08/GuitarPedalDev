@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -27,13 +28,23 @@ void distortion_stage_init(distortion_stage* d_stage, biquad** pre_filters, int 
 	d_stage->num_post_filters = num_post_filters;
 }
 
-//I can't get input and output buffers before the stream starts, so I can't get pointers for initialization
-//These will have to be parameters given in process
+//Parameter getting and setting
+void set_distort_gain (distortion_engine* d_engine, float gain) {
+
+	float converted_gain = expf(gain * 3.41);
+	int stage_index = d_engine->control_stage;
+	d_engine->d_stages[stage_index]->gain = converted_gain;
+}
+
+void set_distort_bias (distortion_engine* d_engine, float bias) {
+
+	int stage_index = d_engine->control_stage;
+	d_engine->d_stages[stage_index]->bias = bias;
+}
 
 void process_distortion(distortion_engine* d_engine, float *in_buf, float *out_buf) {
 
 	float sample;
-
 	//process distortion without oversampling
 	for(int i = 0, j = 0; i < d_engine->buffer_size; i++) {
 		
@@ -42,9 +53,6 @@ void process_distortion(distortion_engine* d_engine, float *in_buf, float *out_b
 			//call the nth distortion_stage to process the ith sample
 			sample = process_distort_stage(d_engine->d_stages[n], sample);
 		}
-
-		//output stereo
-		out_buf[j++] = sample;
 		out_buf[j++] = sample;
 	}
 }
@@ -99,7 +107,7 @@ void distortion_stage_free(distortion_stage* d_stage) {
 	free(d_stage);
 }
 
-//Below are a variety of different functions for distortion, processed sample-by-sample
+//Wave shaping functions, processed sample-by-sample
 float tanh_distortion(float sample){
 	return tanhf(sample);
 }
@@ -137,11 +145,7 @@ float abs_fuzz(float gain, float signal) {
 	return driven_signal / (1 + fabsf(driven_signal));
 }
 
-/*Below are a variety of different functions for distortion, processed over the entire buffer
-* All of these functions include an anti-aliasing filter(brute force, 1st order low-pass)
-* They take in a gain factor, the upsampled buffer, the native buffer size, and the upsampling factor
-*/
-
+//Wave shaping functions, processed over the entire buffer
 void tanh_distortion_buffer(float* up_buf, int buf_size, int up_factor) {
 	//distortion happens in the loop below
 	for(int i = 0; i < (buf_size * up_factor); i++) {
@@ -150,47 +154,47 @@ void tanh_distortion_buffer(float* up_buf, int buf_size, int up_factor) {
 	}
 }
 
-//archived code
+// A space for stock distortion configs
+void build_fav_distort_1(distortion_engine* d_engine, int up_factor, int sample_rate, int buffer_size, float* up_buf) {
 
-//This is an old version of engine and process, written before the shift to distortion_stages
+    // initialize distortion stages
+	static distortion_stage d_stage1;
+    static distortion_stage d_stage2;
 
-// void distortion_init(distortion_engine* d_engine, distortion_effect distort_func, float gain, int up_factor, int sample_rate, int buffer_size, float* up_buf) {
+    //initialize filters
+    static biquad* hp1;
+    hp1 = bq_new(HIGHPASS, 160, 0.7071, 0, sample_rate);
+    static biquad* hp2;
+    hp2 = bq_new(HIGHPASS, 80, 0.7071, 0, sample_rate);
+	static biquad* pk1;
+    pk1 = bq_new(PEAK, 1500, 0.7071, 2.5119, sample_rate);
+    static biquad* pk2;
+    pk2 = bq_new(PEAK, 1000, 1, 2.5119, sample_rate);
+    static biquad* lp1;
+    lp1 = bq_new(LOWPASS, 3000, 0.7071, 0, sample_rate);
+    static biquad* lp2;
+    lp2 = bq_new(LOWPASS, 6000, 0.7071, 0, sample_rate);
 
-// 	d_engine->alias_filter = alias_init(up_factor, sample_rate);
-// 	d_engine->leading_HPF = leading_HPF_init(up_factor, sample_rate);
-// 	d_engine->trailing_LPF = trailing_LPF_initint(up_factor, sample_rate);
-// 	d_engine->d_effect = distort_func;
-// 	d_engine->gain = gain;
+    //stack filters
+    static biquad* pre_filters1[3];
+    pre_filters1[0] = hp1;
+    pre_filters1[1] = lp1;
+    pre_filters1[2] = pk1;
+    distortion_stage_init(&d_stage1, pre_filters1, 3, 0.0f, 1.0f, tanh_distortion, NULL, 0);
 
-// 	d_engine->up_factor = up_factor;
-// 	d_engine->buffer_size = buffer_size;
+    static biquad* pre_filters2[3];
+    pre_filters2[0] = hp2;
+    pre_filters2[1] = lp2;
+    pre_filters2[2] = pk2;
+    distortion_stage_init(&d_stage2, pre_filters2, 3, 0.25f, 5.0f, tanh_distortion, NULL, 0);
 
-// 	d_engine->up_buf = up_buf;
+    //stack distortion stages
+    static distortion_stage* d_stages[2];
+    d_stages[0] = &d_stage1;
+    d_stages[1] = &d_stage2;
 
-// }
+    //set the control stage
+    d_engine->control_stage = 1;
 
-
-// void process_distortion(distortion_engine* d_engine, float *in_buf, float *out_buf) {
-
-// 	float bias = 0.25f;
-
-// 	upsample(in_buf, d_engine->buffer_size, d_engine->up_buf, d_engine->up_factor);
-
-// 	//leading_HPF_process(d_engine->leading_HPF, d_engine->buffer_size, d_engine->up_buf, d_engine->up_factor);
-
-// 	apply_gain(d_engine->gain, d_engine->buffer_size, d_engine->up_buf, d_engine->up_factor);
-
-// 	add_bias(bias, d_engine->buffer_size, d_engine->up_buf, d_engine->up_factor);
-
-// 	d_engine->d_effect(d_engine->up_buf, d_engine->buffer_size, d_engine->up_factor);
-
-// 	float bias_offset = compute_bias_offset(tanh_distortion, bias);
-
-// 	filter_bias(bias_offset, d_engine->buffer_size, d_engine->up_buf, d_engine->up_factor);
-	
-// 	alias_filter_process_gc(d_engine->alias_filter, d_engine->buffer_size, d_engine->up_buf, d_engine->up_factor);
-	
-// 	downsample_stereo(d_engine->up_buf, d_engine->up_factor, out_buf, d_engine->buffer_size);
-
-// 	//trailing_LPF_process(d_engine->trailing_LPF, d_engine->buffer_size, d_engine->up_buf, d_engine->up_factor);
-// }
+    distortion_init(d_engine, d_stages, 2, up_factor, sample_rate, buffer_size, up_buf);
+}

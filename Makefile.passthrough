@@ -1,0 +1,41 @@
+# Makefile.passthrough - builds pa_passthrough.exe (MinGW, static PortAudio)
+#
+# Run from the project root (the folder that contains src/ and extensions/):
+#     make -f Makefile.passthrough
+#     make -f Makefile.passthrough clean
+#
+# Layout assumed:
+#     src/Util/pa_passthrough.c
+#     extensions/portaudio/            (PortAudio source, built with CMake)
+
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -Iextensions/portaudio/include -mconsole
+LDFLAGS = -Lextensions/portaudio/build
+# -lws2_32 is for the UDP sockets; the rest are what static PortAudio needs on Windows
+LDLIBS = -lportaudio -lws2_32 -lwinmm -lole32 -luuid -lsetupapi -lstdc++
+
+PA_DIR = extensions/portaudio
+PA_BUILD_DIR = $(PA_DIR)/build
+PA_LIB = $(PA_BUILD_DIR)/libportaudio.a
+
+SRC = src/Util/pa_passthrough.c
+TARGET = pa_passthrough.exe
+
+.PHONY: all clean clean-pa
+
+all: $(TARGET)
+
+$(TARGET): $(SRC) $(PA_LIB)
+	$(CC) $(CFLAGS) $(SRC) $(LDFLAGS) $(LDLIBS) -o $(TARGET)
+
+# Same PortAudio build rule as your main Makefile. If libportaudio.a already
+# exists (e.g. you built it with the other Makefile) this is skipped.
+$(PA_LIB):
+	cmake -S $(PA_DIR) -B $(PA_BUILD_DIR) -G "MinGW Makefiles"
+	cmake --build $(PA_BUILD_DIR)
+
+clean:
+	rm -f $(TARGET)
+
+clean-pa:
+	rm -rf $(PA_BUILD_DIR)

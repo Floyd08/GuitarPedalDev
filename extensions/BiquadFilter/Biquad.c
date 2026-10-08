@@ -59,6 +59,50 @@ biquad* bq_new(int filter_type,
 	return tmp;
 }
 
+void bq_update(biquad* filter, int filter_type, float frequency, float Q, float dbGain, int sample_rate) {
+
+	biquad* tmp = filter;
+	
+	if (tmp == NULL){
+		printf("Given filter was not initialized");
+	}
+
+	// Calculate helper variables for
+	// generating 'a' and 'b' coefficients
+	float A = pow(10, dbGain / 40); //convert to db
+    float omega = 2 * M_PI * frequency / sample_rate;
+    float sn = sin(omega);
+    float cs = cos(omega);
+    float alpha = sn / (2*Q);
+    float beta = sqrt(A + A);
+	
+	// Load 'a' and 'b' coefficients
+	// into tmp biquad
+	
+	bq_load_coefficients(tmp, filter_type,
+						A, omega,
+						sn, cs,
+						alpha, beta);
+	//Scale coeffs to a0
+	// tmp->a1 = (tmp->a1) / (tmp->a0);
+	// tmp->a2 = (tmp->a2) / (tmp->a0);
+	// tmp->b0 = (tmp->b0) / (tmp->a0);
+	// tmp->b1 = (tmp->b1) / (tmp->a0);
+	// tmp->b2 = (tmp->b2) / (tmp->a0);
+	tmp->a1 /= (tmp->a0);
+	tmp->a2 /= (tmp->a0);
+	tmp->b0 /= (tmp->a0);
+	tmp->b1 /= (tmp->a0);
+	tmp->b2 /= (tmp->a0);
+
+	// Load rest of data
+
+	tmp->prev_input_1 = 0.0;
+	tmp->prev_input_2 = 0.0;
+	tmp->prev_output_1 = 0.0;
+	tmp->prev_output_2 = 0.0;
+}
+
 float bq_process(biquad* bq, float input){
 	float output = 	(bq->b0 * input) +
 					(bq->b1 * bq->prev_input_1) +

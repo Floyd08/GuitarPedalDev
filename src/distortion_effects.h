@@ -3,8 +3,11 @@
 
 #include "Biquad.h"
 
-//these must be initialized in main, before the Audio stream starts
+//#define M_E						2.718281828		// e to 9 decimal places
+#define MIN_GAIN_EXP_DIST		0.001			// -30dB
+#define MAX_GAIN_EXP_DIST		3.41			// 30dB
 
+//these must be initialized in main, before the Audio stream starts
 typedef void (*distortion_effect)(float*, int, int);
 typedef float (*distortion_effect_bysample)(float);
 
@@ -25,6 +28,7 @@ typedef struct {
 	biquad* alias_filter;				// A lowpass filter, calibrated for anti-aliasing
 	distortion_stage** d_stages;		// A pointer to the array of pointers to the distortion stages
 	int num_stages;						// The number of stages in the array
+	int control_stage;					// The index of the stage that can be controlled from the UI
 
 	int up_factor;						// A multiple for upsampling. an value less than 2 will skip upsampling(and alias filtering) altogether
 	int buffer_size;					// The size of the buffer used by the audio stream
@@ -35,12 +39,14 @@ typedef struct {
 
 void distortion_init(distortion_engine* d_engine, distortion_stage** d_stages, int num_stages, int up_factor, int sample_rate, int buffer_size, float* up_buf);
 void distortion_stage_init(distortion_stage* d_stage, biquad** pre_filters, int num_pre_filters, float bias, float gain, distortion_effect_bysample d_effect, biquad** post_filters, int num_post_filters);
+void set_distort_gain (distortion_engine* d_engine, float gain);
+void set_distort_bias (distortion_engine* d_engine, float bias);
 void process_distortion(distortion_engine* d_engine, float *in_buf, float *out_buf);
 float process_distort_stage(distortion_stage* d_stage, float sample);
 void distortion_stage_free(distortion_stage* d_stage);
 void distortion_free(distortion_engine* d_engine);
 
-//Simple, per sample distortion functions
+//Wave shaping functions, processed sample-by-sample
 float tanh_distortion(float sample);
 float atanhf_clipping(float gain, float signal);
 float cubic_soft_clipping(float gain, float signal);
@@ -48,31 +54,10 @@ float sin_fuzz(float gain, float signal);
 float simple_asym(float gain, float signal);
 float abs_fuzz(float gain, float signal);
 
-//Below are a variety of different functions for distortion, processed over the entire buffer
-//All of these functions include an anti-aliasing filter(brute force, 1st order low-pass)
-//They take in a gain factor, the input and output buffers as well as a larger buffer to handle the upsampling, the global sample rate, and the upsampling factor
+//Wave shaping functions, processed over the entire buffer
 void tanh_distortion_buffer(float* up_buf, int buf_size, int up_factor);
 
-
-//old definition of distortion_engine. Agrees with the old version of distortion process and init that are still in distortion_effects.c
-
-// typedef struct {
-// 	distortion_effect d_effect;
-// 	biquad* alias_filter;														//A lowpass filter, calibrated for anti-aliasing
-// 	biquad* leading_HPF;														//A Highpass filter, to run between upsampling and distortion
-// 	biquad* trailing_LPF;														//Another low pass filter, to run after decimation													
-
-// 	//configurable parameters
-// 	float gain;																		
-	
-// 	//size parameters
-// 	int up_factor;
-// 	int buffer_size;
-
-// 	//buffer parameters
-// 	float* up_buf;
-
-// } distortion_engine;
-
+//designed distortion effects
+void build_fav_distort_1(distortion_engine* d_engine, int up_factor, int sample_rate, int buffer_size, float* up_buf);
 
 #endif
