@@ -2,14 +2,26 @@
 #define DISTORTION_FX_H
 
 #include "Biquad.h"
+#include "effects_engine.h"
+#include "control_def.h"
 
 //#define M_E						2.718281828		// e to 9 decimal places
-#define MIN_GAIN_EXP_DIST		0.001			// -30dB
-#define MAX_GAIN_EXP_DIST		3.41			// 30dB
+#define MIN_GAIN_EXP_DIST		0.0316			// -30dB
+#define MAX_GAIN_EXP_DIST		31.6228			// 30dB
 
 //these must be initialized in main, before the Audio stream starts
 typedef void (*distortion_effect)(float*, int, int);
 typedef float (*distortion_effect_bysample)(float);
+
+//The controls this module offers to the UI. ui_listener registers this table, and the UI builds itself from it
+//The order of the enum is the order of the table in distortion_effects.c
+//To add a control: add a name here, and a row to the table
+enum {
+	DIST_CTRL_GAIN,
+	DIST_CTRL_BIAS,
+	DIST_NUM_CONTROLS
+};
+extern const ControlDef distortion_controls[DIST_NUM_CONTROLS];
 
 typedef struct {
 
@@ -25,23 +37,23 @@ typedef struct {
 
 typedef struct {
 
+	effects_engine base;				// included to imitate a supertype
 	biquad* alias_filter;				// A lowpass filter, calibrated for anti-aliasing
 	distortion_stage** d_stages;		// A pointer to the array of pointers to the distortion stages
 	int num_stages;						// The number of stages in the array
 	int control_stage;					// The index of the stage that can be controlled from the UI
 
 	int up_factor;						// A multiple for upsampling. an value less than 2 will skip upsampling(and alias filtering) altogether
-	int buffer_size;					// The size of the buffer used by the audio stream
-
 	float* up_buf;						// A pointer to a larger float buffer. It's size is buffer_size * up_factor
+	int buffer_size;					// The size of the buffer used by the audio stream
 
 } distortion_engine;
 
 void distortion_init(distortion_engine* d_engine, distortion_stage** d_stages, int num_stages, int up_factor, int sample_rate, int buffer_size, float* up_buf);
 void distortion_stage_init(distortion_stage* d_stage, biquad** pre_filters, int num_pre_filters, float bias, float gain, distortion_effect_bysample d_effect, biquad** post_filters, int num_post_filters);
-void set_distort_gain (distortion_engine* d_engine, float gain);
-void set_distort_bias (distortion_engine* d_engine, float bias);
-void process_distortion(distortion_engine* d_engine, float *in_buf, float *out_buf);
+void set_distort_gain (effects_engine* engine, float gain);
+void set_distort_bias (effects_engine* engine, float bias);
+void process_distortion(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size);
 float process_distort_stage(distortion_stage* d_stage, float sample);
 void distortion_stage_free(distortion_stage* d_stage);
 void distortion_free(distortion_engine* d_engine);

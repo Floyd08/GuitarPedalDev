@@ -1,17 +1,20 @@
 #include <stdio.h>
+#include <math.h>
 #include "dsp_tools.h"
 
 void test_upsampling();
 void test_downsampling();
 void test_alias_filtering();
+void test_envelope_sampler();
 
 int main(void) {
 
 	//test_upsampling();
 	//test_downsampling();
-	test_alias_filtering();
+	// test_alias_filtering();
+	test_envelope_sampler();
 }
-
+/*
 void test_upsampling() {
 
 	int upsampling_factor = 2, input_buffer_length = 32;
@@ -82,4 +85,25 @@ void test_alias_filtering() {
 		printf("float at index: %d -> %f\n", i, test_output[i]);
 	}
 
+}
+*/
+
+void test_envelope_sampler() {
+
+	float sample_rate = 1000, intial_state = 0;
+	float attack = 0.01, release = 0.05;
+
+	float input[] = {0, 1, 1, 1, 1, 1, 1, 1,
+						1, 1, 0, 0, 0, 1, 1, 1};
+	int input_length = 16;
+
+	envelope_follower e_fol;
+	envelope_follower_init(&e_fol, attack, release, sample_rate);
+
+	for (int i = 0; i < input_length; i++) {
+
+		printf ("sample #%d: current state: %f\n", i, e_fol.state);
+		process_envelope_follower(&e_fol, input[i]);
+		printf ("sample #%d: new state: %f\n", i, e_fol.state);
+	}
 }

@@ -4,11 +4,26 @@
 #include <math.h>
 #include "dsp_tools.h"
 #include "Biquad.h"
+#include "control_def.h"
+#include "effects_engine.h"
 #include "distortion_effects.h"
+
+//The controls this module offers to the UI. ui_listener registers this table, and the UI builds itself from it
+//Rows are relative to this module (0 is its first row). Names must be unique across ALL modules
+const ControlDef distortion_controls[DIST_NUM_CONTROLS] = {
+	[DIST_CTRL_GAIN] = { .name = "gain", .label = "Gain", .type = CTRL_KNOB, .row = 0, .default_value = 0.10f, .update_func = set_distort_gain },
+	[DIST_CTRL_BIAS] = { .name = "bias", .label = "Bias", .type = CTRL_KNOB, .row = 0, .default_value = 0.25f, .update_func = set_distort_bias },	
+};
 
 //initialization. Should handle all instantiation for the distortion engine, so everything is ready for runtime
 void distortion_init(distortion_engine* d_engine, distortion_stage** d_stages, int num_stages, int up_factor, int sample_rate, int buffer_size, float* up_buf){
 
+	effects_engine base;
+	effects_engine_init(&base, "distortion");
+	base.controls = distortion_controls;
+	base.num_controls = DIST_NUM_CONTROLS;
+
+	d_engine->base = base;
 	d_engine->alias_filter = alias_init(up_factor, sample_rate);
 	d_engine->d_stages = d_stages;
 	d_engine->num_stages = num_stages;
@@ -29,20 +44,29 @@ void distortion_stage_init(distortion_stage* d_stage, biquad** pre_filters, int 
 }
 
 //Parameter getting and setting
-void set_distort_gain (distortion_engine* d_engine, float gain) {
+void set_distort_gain (effects_engine* engine, float gain) {
 
-	float converted_gain = expf(gain * 3.41);
+	distortion_engine* d_engine = (distortion_engine*)engine;
+
+	//float converted_gain = expf(gain * 3.41);
+	float converted_gain = linear_to_log(gain, minus_3dB, plus_30dB);
 	int stage_index = d_engine->control_stage;
 	d_engine->d_stages[stage_index]->gain = converted_gain;
 }
 
-void set_distort_bias (distortion_engine* d_engine, float bias) {
+void set_distort_bias (effects_engine* engine, float bias) {
+
+	distortion_engine* d_engine = (distortion_engine*)engine;
 
 	int stage_index = d_engine->control_stage;
 	d_engine->d_stages[stage_index]->bias = bias;
 }
 
-void process_distortion(distortion_engine* d_engine, float *in_buf, float *out_buf) {
+void process_distortion(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size) {
+
+	//printf("processing distortion\n");
+
+	distortion_engine* d_engine = (distortion_engine*)engine;
 
 	float sample;
 	//process distortion without oversampling
@@ -55,6 +79,8 @@ void process_distortion(distortion_engine* d_engine, float *in_buf, float *out_b
 		}
 		out_buf[j++] = sample;
 	}
+
+	//printf("distortion processed\n");
 }
 
 float process_distort_stage(distortion_stage* d_stage, float sample) {
