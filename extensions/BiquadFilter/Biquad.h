@@ -25,6 +25,7 @@ typedef enum {
 	PEAK		= 4,
 	LOWSHELF	= 5,
 	HIGHSHELF	= 6,
+	ALLPASS		= 7,
 } FILTER_TYPES;
 
 biquad* bq_new(int filter_type,

@@ -34,6 +34,7 @@ void process_master_volume(effects_engine* engine, float* in_buf, float* out_buf
 
     int i = 0;
     while (i < master_engine->buffer_size) {
+
         out_buf[i] = in_buf[i] * master_engine->master_volume;
         i++;
     }

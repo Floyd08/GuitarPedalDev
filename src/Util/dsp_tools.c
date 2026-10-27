@@ -1,21 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include "Biquad.h"
-//#include "distortion_effects.h"
+#include "dsp_tools.h"
 
-#define	BUTTERWORTH_Q				0.7071
-#define UNITY_GAIN					0.0f
-#define ALIAS_CUTOFF				20000
-
-typedef struct {
-
-	float state;
-	float attack_time_ms;
-	float attack_alpha;
-	float release_time_ms;
-	float release_alpha;
-	
-} envelope_follower;
 
 void envelope_follower_init(envelope_follower* e_fol, float attack_t, float release_t, int sample_rate) {
 
@@ -57,32 +45,127 @@ void set_env_release(envelope_follower* e_fol, float new_release_time, int sampl
 	e_fol->release_alpha = expf(-1.0f / (new_release_time * 0.001f * sample_rate));
 }
 
-biquad* alias_init(int upsample_factor, int sample_rate) {
-	
-	int oversampled_rate = sample_rate * upsample_factor;
-	biquad* alias_filter = bq_new(LOWPASS, ALIAS_CUTOFF, BUTTERWORTH_Q, UNITY_GAIN, oversampled_rate);
-	return alias_filter;
+
+int r_buffer_init(ring_buffer* r_buffer, unsigned int size) {
+
+	if (size < 2) {
+		fprintf(stderr, "ring_buffer size must be 2 or greater\n");
+		return 1;
+	}
+	if ((size & (size - 1)) != 0) {
+		fprintf(stderr, "ring_buffer size must be a power of 2\n");
+		return 1;
+	}
+
+	r_buffer->r_buffer = calloc(size, sizeof(float));
+	if(r_buffer->r_buffer == NULL) {
+		fprintf(stderr, "ring_buffer allocation failure\n");		return 1;
+	}
+
+	r_buffer->write_head = 0;
+	r_buffer->read_head = 0;
+	r_buffer->size = size;
+	r_buffer->mask = size - 1;
+
+	return 0;
 }
 
-void alias_terminate(biquad* alias_filter) {
-	bq_destroy(alias_filter);
+void r_buffer_free(ring_buffer* buffer) {
+	
+	free(buffer->r_buffer);
+	free(buffer);
+}
+
+float r_buffer_read(ring_buffer* buffer) {
+
+	int read = buffer->read_head;
+	float sample = buffer->r_buffer[read];
+
+	read++;
+	read = read & buffer->mask;
+	buffer->read_head = read;
+
+	return sample;
+}
+
+float r_buffer_read_index(ring_buffer* buffer, unsigned int index) {
+
+	float sample;
+	index = index & buffer->mask;
+	sample = buffer->r_buffer[index];
+
+	return sample;
+}
+
+void r_buffer_read_block(ring_buffer* buffer, int num_samples, float* out_buf) {
+
+	for (int i = 0; i < num_samples; i++) {
+
+		out_buf[i] = r_buffer_read(buffer);
+	}
+}
+
+void r_buffer_read_delayed_bloc(ring_buffer* buffer, int num_samples, float* out_buf, int delay_in_samples) {
+
+	//unsigned int read_index = wrap_index(buffer->write_head, (-1 * delay_in_samples), buffer->mask);			 r_buffer_read_index already handles the wrap
+	unsigned int read_index = buffer->write_head - delay_in_samples;
+
+	for (int i = 0; i < num_samples; i++) {
+	
+		out_buf[i] = r_buffer_read_index(buffer, read_index++);
+	}
+
+}
+
+void r_buffer_write(ring_buffer* buffer, float sample) {
+
+	int write = buffer->write_head;
+	buffer->r_buffer[write] = sample;
+
+	write++;
+	write = write & buffer->mask;
+	buffer->write_head = write;
+}
+
+void r_buffer_write_block(ring_buffer* buffer, int num_samples, float* input) {
+
+	for(int i = 0; i < num_samples; i++) {
+
+		r_buffer_write(buffer, input[i]);
+	}
+}
+
+float r_buffer_write_index(ring_buffer* buffer, int index, float sample) {
+
+	index = index & buffer->mask;
+
+	buffer->r_buffer[index] = sample;
+	return sample;
+}
+
+unsigned int wrap_index(unsigned int current_index, int index_mod, unsigned int mask) {
+
+	unsigned int new_index = current_index + index_mod;
+	new_index = new_index & mask;
+
+	return new_index;
 }
 
 /*
 *	@brief accepts an input buffer, and an output buffer scaled for the upsampling factor
 */
-void upsample(float* input_buf, int buffer_size, float* upsampled_buf, int upsample_factor) {
+void upsample(float* input_buf, int buffer_size, float* upsample_buf, int upsample_factor) {
 	
 	int i = 0, j = 0;
 	while (i < buffer_size) {
 
-		upsampled_buf[j] = input_buf[i];
+		upsample_buf[j] = input_buf[i];
 		j++;
 
 		int k = 1;
 		while (k < upsample_factor) {
 
-			upsampled_buf[j] = 0;
+			upsample_buf[j] = 0;
 			j++;
 			k++;
 		}
@@ -114,6 +197,17 @@ void downsample_stereo(float* upsampled_buf, int upsample_factor, float* output_
 }
 
 
+biquad* alias_init(int upsample_factor, int sample_rate) {
+	
+	int oversampled_rate = sample_rate * upsample_factor;
+	biquad* alias_filter = bq_new(LOWPASS, ALIAS_CUTOFF, BUTTERWORTH_Q, UNITY_GAIN, oversampled_rate);
+	return alias_filter;
+}
+
+void alias_terminate(biquad* alias_filter) {
+	bq_destroy(alias_filter);
+}
+
 //runs the upsampled buffer through a low pass filter configured for anti-aliasing
 void alias_filter_process(biquad* alias_filter, int buffer_size, float* upsampled_buffer, int upsample_factor) {
 
@@ -135,7 +229,27 @@ void alias_filter_process_gc(biquad* alias_filter, int buffer_size, float* upsam
 	}
 }
 
+
 float linear_to_log(float linear_val, float min, float max) {
     
 	return min * powf(max / min, linear_val);
+}
+
+float convert_to_range(float value, float min, float max) {
+
+	float new_range;
+	new_range = value * (max - min) + min;
+	return new_range;
+}
+
+float rectify(float sample) {
+
+	return fabsf(sample);
+}
+
+// A softer rectification
+float soft_rectify(float sample, float knee) {
+
+	float rect = sqrtf(sample * sample + knee * knee) - knee;
+	return rect;
 }

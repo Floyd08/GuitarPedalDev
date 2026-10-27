@@ -10,4 +10,6 @@ src/ui/*
 src/util/sine_udp.c
 src/util/sine_udp.h
 src/util/sine_udp.exe
+src\util\pa_ringbuffer.c
+src\util\pa_ringbuffer.h
 *.o

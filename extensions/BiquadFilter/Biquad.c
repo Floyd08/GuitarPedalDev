@@ -106,9 +106,9 @@ void bq_update(biquad* filter, int filter_type, float frequency, float Q, float 
 float bq_process(biquad* bq, float input){
 	float output = 	(bq->b0 * input) +
 					(bq->b1 * bq->prev_input_1) +
-					(bq->b2* bq->prev_input_2) -
-					(bq->a1* bq->prev_output_1) -
-					(bq->a2* bq->prev_output_2);
+					(bq->b2 * bq->prev_input_2) -
+					(bq->a1 * bq->prev_output_1) -
+					(bq->a2 * bq->prev_output_2);
 	bq->prev_input_2 = bq->prev_input_1;
 	bq->prev_input_1 = input;
 	bq->prev_output_2 = bq->prev_output_1;
@@ -209,6 +209,16 @@ void bq_load_coefficients(biquad* bq, int filter_type,
     		bq->a1 = 2 * ((A - 1) - (A + 1) * cs);
     		bq->a2 = (A + 1) - (A - 1) * cs - beta * sn;
     		bq->type = "HIGHSHELF";
+			break;
+
+		case ALLPASS:
+			bq->b0 = 1 - alpha;
+			bq->b1 = -2 * cs;
+			bq->b2 = 1 + alpha;
+			bq->a0 = 1 + alpha;
+			bq->a1 = -2 * cs;
+			bq->a2 = 1 - alpha;
+			bq->type = "ALLPASS";
 			break;
 
 		default:

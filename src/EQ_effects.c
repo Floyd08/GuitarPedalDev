@@ -40,9 +40,7 @@ void EQ_init(EQ_engine* eq, int sample_rate) {
 }
 
 void process_EQ(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size) {
-
-	//printf("processing EQ\n");
-
+	
 	EQ_engine* eq = (EQ_engine*)engine;
 	
 	float sample;

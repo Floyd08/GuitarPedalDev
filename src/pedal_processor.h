@@ -27,7 +27,6 @@ typedef struct {
 float passthrough(float signal);
 void passthrough_buffer(int buf_size, float* in_buf, float* out_buf);
 
-void process_volume(float volumn_factor, float *out_buf, int buffer_size);
 void mono_to_stereo(float* out_buffer, int mono_size);
 
 void fx_chain_init(fx_chain* chain);
