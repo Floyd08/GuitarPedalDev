@@ -17,7 +17,11 @@ EQ_effects implements a 3 band equalization effect, with sweep controls for the 
 
 Compressor_effects implements a compressor with five parameters: Attack, Release, Makeup gain, threshold, and ratio.
 
+Delay_effects implements a delay with three parameters: delay time in ms, dry/wet mix, and regeneration(echo)
+
 Master_effects handles Master control of the application, and for now handles only Master Volume, which is processed at the very end of the signal chain.
+
+Amp_model is a simplified model of a tube amplifier. It's three modules pre-amp, power-amp, and filtercab model those parts of an amplifier respectively. The cab sim is a chain of 2nd order IIR filters
 
 The signal chain is defined at runtime in main, and callback routes audio through the each module by looping though the fx_chain
 
