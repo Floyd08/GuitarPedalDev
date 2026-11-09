@@ -8,7 +8,7 @@ To use this yourself, you would to take two steps:
 1. You would need to build Port Audio as a shared library for your OS. If you are on Windows, the libportaudio.dll already in the repo might suffice for this
 2. You would need to edit pedal_processor.c to select your own audio interface. This happens at the top of main, and you will find it is currently hard-coded for my own Motu M2. In src/util you will find a source file "list_audio_device.c" If you compile and run this, you should see a list of ever audio device detected by Port Audio, and you should find the info you need to set your Audio interface in that list.
 
-You can find a makefile that should allow you to build the application, but you made need to edit that to make sure the PA shared library is detected.
+You can find a makefile that should allow you to build the application, but you may need to edit that to make sure the PA shared library is detected.
 
 
 # Application structure in brief:
