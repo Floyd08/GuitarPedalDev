@@ -3,7 +3,6 @@
 
 #include "dsp_tools.h"
 #include "effects_engine.h"
-#include "one_pole.h"
 #include "distortion_effects.h"
 
 #define		DFLT_BASS_FREQ			200
@@ -42,12 +41,14 @@ typedef struct {
 	onepole* bass_lsf;				// low shelf filter, 200Hz, butterworth, unity
 	float bass_gain;				// bass gain setting
 
-	onepole* mid_peak;				// mid peaking filter, 800Hz, butterworth, unity
+	biquad* mid_peak;				// mid peaking filter, 800Hz, butterworth, unity
 	float mid_gain;					// mpf gain setting
 	float mid_freq;					// mpf centre frequency setting
 
 	onepole* treble_hsf;			// high shelf filter, 3000Hz, butterworth, unity
 	float treble_gain;				// treble gain setting
+
+	float sample_rate;
 
 } tone_stack;
 

@@ -204,6 +204,21 @@ float distortion_passthrough (float sample) {
 	return sample;
 }
 
+float bitcrush_distortion(float sample) {
+
+	int bit_depth = 4;
+	float levels = powf(2.0f, bit_depth);				//2^bit_depth;
+	float scale = levels / 2;
+	// float scale = (float)(1 << (bit_depth - 1));
+
+	sample = fmaxf(-1.0f, fminf(1.0f, sample));			// clamp to {-1, 1}
+	sample = sample * scale;
+	sample = roundf(sample);
+	sample = sample / scale;
+
+	return sample;
+}
+
 float atanhf_clipping(float gain, float signal) {
 
 	//Next three lines were suggested by Claude, because atanhf can give Nan/Inf results when the input is outside -1 - 1
@@ -213,6 +228,28 @@ float atanhf_clipping(float gain, float signal) {
 	return atanhf(signal * gain);
 }
 
+float min_max_fuzz(float sample) {
+	
+	sample = fminf(fmaxf(sample, -1), 1);
+	return sample;
+}
+
+float wavefolder_1(float sample) {
+
+	sample = sample * M_2_PI;
+	sample  = sinf(sample);
+	return sample;
+}
+
+float wavefolder_2(float sample) {
+
+	sample = wavefolder_1(sample);
+	sample = asinf(sample);
+	sample = sample * M_2_PI;
+	return sample;
+}
+
+
 float cubic_soft_clipping(float gain, float signal) {
 	
 	float driven_signal = signal * gain;
@@ -220,21 +257,10 @@ float cubic_soft_clipping(float gain, float signal) {
 	return driven_signal - (1.0f / 3.0f) * powf(driven_signal, 3);
 }
 
-float sin_fuzz(float gain, float signal) {
-
-	return sinf(gain * signal);
-}
-
 float simple_asym(float gain, float signal) {
 
 	return powf(signal, gain) - 1;
 	//what if I flipped this, and the signal was the exponent? What would that sound like?
-}
-
-float abs_fuzz(float gain, float signal) {
-	
-	float driven_signal = signal *gain;
-	return driven_signal / (1 + fabsf(driven_signal));
 }
 
 //Wave shaping functions, processed over the entire buffer
@@ -414,38 +440,21 @@ void build_octave_fuzz_v2(distortion_engine* d_engine, int sample_rate, int buff
 }
 
 // A blank function to drop individual d_stages into
-// void stage_testing(distortion_engine* d_engine, int sample_rate, int buffer_size) {
+void stage_testing(distortion_engine* d_engine, int sample_rate, int buffer_size) {
 
-// 	int upsample_factor = 4;										// Oversample at a rate of 4 x original sample rate
-// 	// int s_rate = sample_rate * upsample_factor;						// adjusted sample rate for filter set up
+	int upsample_factor = 1;
 
-// 	// static biquad* stg2_lpf;
-// 	// stg2_lpf = bq_new(LOWPASS, 5000, BUTTERWORTH_Q, UNITY_GAIN, s_rate);
-// 	// static biquad* stg2_hpf;
-// 	// stg2_hpf = bq_new(HIGHPASS, 150, BUTTERWORTH_Q, UNITY_GAIN, s_rate);
-// 	// static biquad* stg2_fltrs[2];
-// 	// stg2_fltrs[0] = stg2_lpf;
-// 	// stg2_fltrs[1] = stg2_hpf;
+	static distortion_stage d_stage1;
+	distortion_stage_init(&d_stage1, NULL, 0, 0, 0, _0dB, -1, wavefolder_1, NULL, 0);
 
-// 	// static biquad* post_lpf1;
-// 	// post_lpf1 = bq_new(LOWPASS, 5000, BUTTERWORTH_Q, UNITY_GAIN, s_rate);
-// 	// static biquad* post_lpf2;
-// 	// post_lpf2 = bq_new(LOWPASS, 3500, BUTTERWORTH_Q, UNITY_GAIN, s_rate);
-// 	// static biquad* post_fltrs[1];
-// 	// //post_fltrs[0] = post_lpf1;
-// 	// post_fltrs[0] = post_lpf2;
+	//stack distortion stages
+	static distortion_stage* d_stages[1];
+	d_stages[0] = &d_stage1;
 
-// 	static distortion_stage d_stage1;
-// 	distortion_stage_init(&d_stage1, NULL, 0, 0, 0, _0dB, -1, soft_knee_distortion, NULL, 0);
+	// set the control stage
+	d_engine->control_stages[0] = 0;
+	d_engine->control_stages[1] = 0;
+	d_engine->control_stages[2] = 0;
 
-// 	//stack distortion stages
-// 	static distortion_stage* d_stages[1];
-// 	d_stages[0] = &d_stage1;
-
-// 	// set the control stage
-// 	d_engine->control_stages[0] = 0;
-// 	d_engine->control_stages[1] = 0;
-// 	d_engine->control_stages[2] = 0;
-
-// 	distortion_init(d_engine, d_stages, 1, upsample_factor, sample_rate, buffer_size);
-// }
+	distortion_init(d_engine, d_stages, 1, upsample_factor, sample_rate, buffer_size);
+}

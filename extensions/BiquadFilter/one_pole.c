@@ -33,6 +33,28 @@ onepole* op_new(int filter_type, float frequency, float dbGain, int sample_rate)
     return tmp;
 }
 
+onepole* op_update(onepole* filter, int filter_type, float frequency, float dbGain, int sample_rate) {
+
+    if (frequency <= 0.0f || frequency >= sample_rate / 2.0f){
+        printf("Error: frequency must be between 0 and Nyquist\n");
+        return NULL;
+    }
+
+    onepole* tmp = filter;
+
+    // Helper variables (computed in double; K blows up near Nyquist)
+    
+    double A = pow(10.0, dbGain / 40.0);                 // sqrt of linear gain
+    double K = tan(M_PI * frequency / sample_rate);      // pre-warped bilinear constant
+
+    op_load_coefficients(tmp, filter_type, A, K);
+
+    // tmp->prev_input = 0.0f;
+    // tmp->prev_output = 0.0f;
+
+    return tmp;
+}
+
 float op_process(onepole* op, float input) {
 
     if(op == NULL) {

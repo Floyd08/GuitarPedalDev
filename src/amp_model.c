@@ -14,23 +14,24 @@ const ControlDef amp_model_controls[AMP_NUM_CONTROLS] = {
 
 void tone_stack_init(tone_stack* tone, int sample_rate) {
 	
-	tone->bass_lsf = op_new(LOWSHELF, DFLT_BASS_FREQ, DFLT_GAIN_dB, sample_rate);
-	tone->bass_gain = DFLT_GAIN_LINEAR;
+	tone->bass_lsf = op_new(OP_LOWSHELF, DFLT_BASS_FREQ, DFLT_GAIN_dB, sample_rate);
+	tone->bass_gain = DFLT_GAIN_dB;
 
-	tone->mid_peak = op_new(PEAK, DFLT_MID_FREQ, DFLT_GAIN_dB, sample_rate);
-	tone->mid_gain = DFLT_GAIN_LINEAR;
-	tone->mid_freq = DFLT_MID_FREQ_LN;
+	tone->mid_peak = bq_new(PEAK, DFLT_MID_FREQ, BUTTERWORTH_Q, DFLT_GAIN_dB, sample_rate);
+	tone->mid_gain = DFLT_GAIN_dB;
+	tone->mid_freq = DFLT_MID_FREQ;
 
-	tone->treble_hsf = op_new(HIGHSHELF, DFLT_TREBLE_FREQ, DFLT_GAIN_dB, sample_rate);
-	tone->treble_gain = DFLT_GAIN_LINEAR;
+	tone->treble_hsf = op_new(OP_HIGHSHELF, DFLT_TREBLE_FREQ, DFLT_GAIN_dB, sample_rate);
+	tone->treble_gain = DFLT_GAIN_dB;
 
+	tone->sample_rate = sample_rate;
 }
 
 float process_tone_stack(tone_stack* tone, float sample) {
 
 	sample = op_process(tone->bass_lsf, sample);
 	sample = op_process(tone->treble_hsf, sample);
-	sample = op_process(tone->mid_peak, sample);
+	sample = bq_process(tone->mid_peak, sample);
 	return sample;	
 }
 
@@ -41,9 +42,9 @@ void pre_amp_init(pre_amp* pre_amp, int sample_rate, int buffer_size) {
 	tone_stack_init(&pre_amp->tone, oversample_rate);
 	pre_amp->gain = _0dB;
 	pre_amp->drive = _0dB;
-	pre_amp->input_hpf = op_new(HIGHPASS, 60, UNITY_GAIN, oversample_rate);
-	pre_amp->interstage_hpf = op_new(HIGHPASS, 150, UNITY_GAIN, oversample_rate);
-	pre_amp->interstage_lpf = op_new(LOWPASS, 7000, UNITY_GAIN, oversample_rate);
+	pre_amp->input_hpf = op_new(OP_HIGHPASS, 60, UNITY_GAIN, oversample_rate);
+	pre_amp->interstage_hpf = op_new(OP_HIGHPASS, 150, UNITY_GAIN, oversample_rate);
+	pre_amp->interstage_lpf = op_new(OP_LOWPASS, 7000, UNITY_GAIN, oversample_rate);
 	pre_amp->bias = 0.15f;
 	pre_amp->bias_precomp = tanhf(pre_amp->bias);
 	
@@ -217,24 +218,34 @@ void set_preamp_bass(effects_engine* engine, float bass) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_bass = linear_to_log(bass, MIN_TS_GAIN, MAX_TS_GAIN);
+	float converted_bass = linear_to_log(bass, 0.001, 1);
+	converted_bass = convert_to_range(converted_bass, MIN_TS_GAIN, MAX_TS_GAIN);
+	
 	a_mod->pr_amp.tone.bass_gain = converted_bass;
+	op_update(a_mod->pr_amp.tone.bass_lsf, OP_LOWSHELF, DFLT_BASS_FREQ, converted_bass, a_mod->pr_amp.tone.sample_rate);
 }
 
 void set_preamp_mid(effects_engine* engine, float mid) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_mid = linear_to_log(mid, MIN_TS_GAIN, MAX_TS_GAIN);
+	float converted_mid = linear_to_log(mid, 0.001, 1);
+	converted_mid = convert_to_range(converted_mid, MIN_TS_GAIN, MAX_TS_GAIN);
+	//fprintf(stderr, "control signal: %f, converted mid: %f, current centre: %f,  sample rate: %f\n", mid, converted_mid, a_mod->pr_amp.tone.mid_freq, a_mod->pr_amp.tone.sample_rate);
 	a_mod->pr_amp.tone.mid_gain = converted_mid;
+	bq_update(a_mod->pr_amp.tone.mid_peak, PEAK, a_mod->pr_amp.tone.mid_freq, BUTTERWORTH_Q, converted_mid, a_mod->pr_amp.tone.sample_rate);
+
 }
 
 void set_preamp_treble(effects_engine* engine, float treble) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_treble = linear_to_log(treble, MIN_TS_GAIN, MAX_TS_GAIN);
+	float converted_treble = linear_to_log(treble, 0.001, 1);
+	converted_treble = convert_to_range(converted_treble, MIN_TS_GAIN, MAX_TS_GAIN);
+	
 	a_mod->pr_amp.tone.treble_gain = converted_treble;
+	op_update(a_mod->pr_amp.tone.treble_hsf, OP_HIGHSHELF, DFLT_BASS_FREQ, converted_treble, a_mod->pr_amp.tone.sample_rate);
 }
 
 void set_preamp_mid_centre(effects_engine* engine, float centre) {
@@ -243,4 +254,5 @@ void set_preamp_mid_centre(effects_engine* engine, float centre) {
 
 	float new_centre = centre * (MAX_MID_CENTRE- MIN_MID_CENTRE) + MIN_MID_CENTRE;
 	a_mod->pr_amp.tone.mid_freq = new_centre;
+	bq_update(a_mod->pr_amp.tone.mid_peak, PEAK, new_centre, BUTTERWORTH_Q, a_mod->pr_amp.tone.mid_gain, a_mod->pr_amp.tone.sample_rate);
 }

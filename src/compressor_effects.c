@@ -12,16 +12,17 @@ const ControlDef compressor_controls[COMP_NUM_CONTROLS] = {
 	[COMP_CTRL_RATIO] = { .name = "ratio", .label = "Ratio", .type = CTRL_KNOB, .row = 3, .default_value = DFLT_RATIO, .update_func = set_ratio },
 };
 
-void compressor_init(compressor_engine* c_engine, envelope_follower* e_fol, int sample_rate) {
+void compressor_init(compressor_engine* c_engine, int sample_rate) {
 
 	effects_engine base;
 	effects_engine_init(&base, "compressor");
 	base.controls = compressor_controls;
 	base.num_controls = COMP_NUM_CONTROLS;
-
 	c_engine->base = base;
+
+	envelope_follower_init(&c_engine->e_fol, DFLT_ENV_ATCK, DFLT_ENV_RLSE, sample_rate);
+
 	c_engine->sample_rate = sample_rate;
-	c_engine->e_fol = e_fol;
 	set_comp_attack(&c_engine->base, DFLT_ATCK);
 	set_comp_release(&c_engine->base, DFLT_RLSE);
 	set_threshold(&c_engine->base, DFLT_THRSH);
@@ -38,10 +39,10 @@ void process_compressor(effects_engine* engine, float *in_buf, float *out_buf, i
 	for(int i = 0; i < buffer_size; i++) {
 
 		gain_scale = 1.0f;
-		process_envelope_follower(c_engine->e_fol, in_buf[i]);										//update the state of the envelope with this sample
+		process_envelope_follower(&c_engine->e_fol, in_buf[i]);									//update the state of the envelope with this sample
 		
-		if (c_engine->e_fol->state > c_engine->threshold) {
-			gain_scale = powf(c_engine->threshold / c_engine->e_fol->state, c_engine->exponent);
+		if (c_engine->e_fol.state > c_engine->threshold) {
+			gain_scale = powf(c_engine->threshold / c_engine->e_fol.state, c_engine->exponent);
 		}
 		out_buf[i] = in_buf[i] * gain_scale * c_engine->makeup_gain;
 		out_buf[i] = tanhf(out_buf[i]);																//prevents make up gain from driving the signal too hard
@@ -54,7 +55,7 @@ void set_comp_attack(effects_engine* engine, float attack) {
 
 	float attack_log = linear_to_log(attack, COMP_ATCK_MIN, COMP_ATCK_MAX);
 	c_engine->attack = attack_log;
-	set_env_attack(c_engine->e_fol, attack_log, c_engine->sample_rate);
+	set_env_attack(&c_engine->e_fol, attack_log, c_engine->sample_rate);
 }
 
 void set_comp_release(effects_engine* engine, float release) {
@@ -63,7 +64,7 @@ void set_comp_release(effects_engine* engine, float release) {
 
 	float release_log = linear_to_log(release, COMP_RLSE_MIN, COMP_RLSE_MAX);
 	c_engine->release = release_log;
-	set_env_release(c_engine->e_fol, release_log, c_engine->sample_rate);
+	set_env_release(&c_engine->e_fol, release_log, c_engine->sample_rate);
 }
 
 void set_makeup_gain(effects_engine* engine, float gain) {

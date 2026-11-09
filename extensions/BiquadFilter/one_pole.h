@@ -12,9 +12,9 @@ typedef struct _onepole{
     float b1;
     float prev_input;
     float prev_output;
-    
     const char* type;
-}onepole;
+
+} onepole;
 
 typedef enum {
     
@@ -22,8 +22,8 @@ typedef enum {
     OP_HIGHPASS = 1,
     OP_ALLPASS  = 2,
     OP_LOWSHELF = 3,
-    
     OP_HIGHSHELF = 4,
+
 } ONEPOLE_TYPES;
 
 // frequency: -3 dB point (LP/HP), 90 degree phase point (allpass),
@@ -31,11 +31,8 @@ typedef enum {
 // dbGain:    only used by the shelf types. Ignored otherwise.
 // Returns NULL on allocation failure or if frequency is not in (0, sample_rate/2).
 onepole* op_new(int filter_type, float frequency, float dbGain, int sample_rate);
-
+onepole* op_update(onepole* filter, int filter_type, float frequency, float dbGain, int sample_rate);
 float op_process(onepole* op, float input);
-
 void op_destroy(onepole* op);
-
 void op_print_info(onepole* op);
-
 void op_load_coefficients(onepole* op, int filter_type, double A, double K);

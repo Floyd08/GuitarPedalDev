@@ -1,7 +1,7 @@
 #include "effects_engine.h"
 #include "control_def.h"
 
-#define DFLT_VOL	0.5				// The default position of the Master Volume knob
+#define DFLT_VOL	0.8f				// The default position of the Master Volume knob
 
 enum {
 	MASTER_VOLUME,

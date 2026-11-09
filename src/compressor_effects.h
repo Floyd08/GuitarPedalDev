@@ -7,9 +7,12 @@
 #define COMP_RLSE_MIN				5		//defined range for the release control in milliseconds
 #define COMP_RLSE_MAX				2000
 #define DFLT_RLSE					0.3
+
 #define	DFLT_THRSH					0.5
 #define	DFLT_MKGAIN					0.75
 #define DFLT_RATIO					0.45
+#define DFLT_ENV_ATCK				10.0
+#define DFLT_ENV_RLSE				50.0
 
 // enumerates the controls that the UI should generate for this fx module
 enum {
@@ -25,7 +28,7 @@ extern const ControlDef compressor_controls[COMP_NUM_CONTROLS];
 typedef struct {
 
 	effects_engine base;						// included to imitate a supertype
-	envelope_follower* e_fol;					// An envelope follower object
+	envelope_follower e_fol;					// An envelope follower object
 	float attack;								// The attack in milliseconds
 	float release;								// The release in milliseconds
 	float threshold;							// The linear threshold over which compression is triggered. Must be > 0
@@ -33,9 +36,10 @@ typedef struct {
 	float ratio;								// Used to calculate the esponent, needed in gain calculation must be >= 1
 	float exponent;								// Pre-computated to avoid division in real-time
 	int sample_rate;
+
 } compressor_engine;
 
-void compressor_init(compressor_engine* c_engine, envelope_follower* e_fol, int sample_rate);
+void compressor_init(compressor_engine* c_engine, int sample_rate);
 void process_compressor(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size);
 
 void set_comp_attack(effects_engine* engine, float attack);

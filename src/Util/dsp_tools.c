@@ -1,10 +1,10 @@
+#define _USE_MATH_DEFINES
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "Biquad.h"
 #include "dsp_tools.h"
 
-
+// Envelope Follower
 void envelope_follower_init(envelope_follower* e_fol, float attack_t, float release_t, int sample_rate) {
 
 	e_fol->state = 0;
@@ -45,7 +45,7 @@ void set_env_release(envelope_follower* e_fol, float new_release_time, int sampl
 	e_fol->release_alpha = expf(-1.0f / (new_release_time * 0.001f * sample_rate));
 }
 
-
+// Ring Buffer
 int r_buffer_init(ring_buffer* r_buffer, unsigned int size) {
 
 	if (size < 2) {
@@ -73,7 +73,6 @@ int r_buffer_init(ring_buffer* r_buffer, unsigned int size) {
 void r_buffer_free(ring_buffer* buffer) {
 	
 	free(buffer->r_buffer);
-	free(buffer);
 }
 
 float r_buffer_read(ring_buffer* buffer) {
@@ -88,7 +87,7 @@ float r_buffer_read(ring_buffer* buffer) {
 	return sample;
 }
 
-float r_buffer_read_index(ring_buffer* buffer, unsigned int index) {
+float r_buffer_read_index(ring_buffer* buffer, int index) {
 
 	float sample;
 	index = index & buffer->mask;
@@ -151,9 +150,97 @@ unsigned int wrap_index(unsigned int current_index, int index_mod, unsigned int 
 	return new_index;
 }
 
-/*
-*	@brief accepts an input buffer, and an output buffer scaled for the upsampling factor
-*/
+
+// allpass filters
+void allpass_init(allpass_filter* apf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float gain) {
+
+	apf->ap_delay_ms = length_ms;
+	apf->ap_delay_samples = lroundf(length_ms * (sample_rate / 1000));
+	//fprintf(stderr, "delay in samples %u\n", apf->ap_delay_samples);
+	r_buffer_init(&apf->ap_buffer, dl_length);
+	apf->ap_gain = gain;
+}
+
+void allpass_free(allpass_filter* apf) {
+	
+	r_buffer_free(&apf->ap_buffer);
+}
+
+float process_allpass(allpass_filter* apf, float sample) {
+
+	float feedback, feedforward, output;
+	float delayed_sample, sample_scratch;
+
+	// read from the delay line 
+	delayed_sample = r_buffer_read_index(&apf->ap_buffer, (apf->ap_buffer.write_head - apf->ap_delay_samples) );
+	
+	// apply gain and invert the signal
+	feedforward = sample * (-1.0f * apf->ap_gain);
+	
+	// computer the output
+	output = delayed_sample + feedforward;
+	
+	// computer the feedback, and write to the rign buffer
+	feedback = output * apf->ap_gain;
+	sample_scratch = sample + feedback;
+	
+	r_buffer_write(&apf->ap_buffer, sample_scratch);
+	
+	return output;
+
+	// r_buffer_write writes on sample from the current write index, then increments
+	// r_buffer_read_index reads a specific index, so I can
+	// read from the current write index minus the delay time in samples
+	// and then write to the ring buffer as needed.
+}
+
+void ap_update_gain(allpass_filter* apf, float gain) {
+
+	apf->ap_gain = gain;
+}
+
+// comb filters
+void verb_comb_init(verb_comb_filter* vcf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float lpf_centre, float gain) {
+
+	vcf->vc_delay_ms = length_ms;
+	vcf->vc_delay_samples = lroundf(length_ms * (sample_rate / 1000));
+
+	r_buffer_init(&vcf->vc_buffer, dl_length);
+	vcf->comb_gain = gain;
+	vcf->lpf = op_new(LOWPASS, lpf_centre, gain, sample_rate);
+}
+
+void verb_comb_free(verb_comb_filter* vcf) {
+
+	r_buffer_free(&vcf->vc_buffer);
+	op_destroy(vcf->lpf);
+}
+
+float process_verb_comb(verb_comb_filter* vcf, float sample) {
+
+	float output, feedback, sample_scratch;
+
+	// read from the delay line
+	output = r_buffer_read_index(&vcf->vc_buffer, (vcf->vc_buffer.write_head - vcf->vc_delay_samples) );
+	feedback = output;
+
+	// process the feedback
+	feedback = op_process(vcf->lpf, feedback);
+	feedback = feedback * vcf->comb_gain;
+
+	// sum the input sample with the feedback, and write to the delay line
+	sample_scratch = sample + feedback;
+	r_buffer_write(&vcf->vc_buffer, sample_scratch);
+
+	return output;
+}
+
+void verb_comb_update_gain(verb_comb_filter* vcf, float gain) {
+
+	vcf->comb_gain = gain;
+}
+
+// Upsampling and Downsampling
 void upsample(float* input_buf, int buffer_size, float* upsample_buf, int upsample_factor) {
 	
 	int i = 0, j = 0;
@@ -196,7 +283,7 @@ void downsample_stereo(float* upsampled_buf, int upsample_factor, float* output_
 	}
 }
 
-
+// Alias filtering(and image filtering)
 biquad* alias_init(int upsample_factor, int sample_rate) {
 	
 	int oversampled_rate = sample_rate * upsample_factor;
@@ -204,10 +291,9 @@ biquad* alias_init(int upsample_factor, int sample_rate) {
 	return alias_filter;
 }
 
-void alias_terminate(biquad* alias_filter) {
+void alias_free(biquad* alias_filter) {
 	bq_destroy(alias_filter);
 }
-
 //runs the upsampled buffer through a low pass filter configured for anti-aliasing
 void alias_filter_process(biquad* alias_filter, int buffer_size, float* upsampled_buffer, int upsample_factor) {
 
@@ -216,7 +302,6 @@ void alias_filter_process(biquad* alias_filter, int buffer_size, float* upsample
 		upsampled_buffer[i] = bq_process(alias_filter, upsampled_buffer[i]);
 	}
 }
-
 //runs the upsampled buffer through a low pass filter configured for anti-aliasing, then applies gain compensation
 void alias_filter_process_gc(biquad* alias_filter, int buffer_size, float* upsampled_buffer, int upsample_factor) {
 
@@ -229,7 +314,31 @@ void alias_filter_process_gc(biquad* alias_filter, int buffer_size, float* upsam
 	}
 }
 
+void low_freq_oscillator_init(low_freq_oscillator* lfo, float rate_Hz, int sample_rate) {
 
+	lfo->phase = 0.0f;
+	lfo->phi_increment = rate_Hz / sample_rate;
+}
+
+float process_lfo(low_freq_oscillator* lfo) {
+
+	float out;
+	out = sinf(lfo->phase * TWO_PI);
+
+	lfo->phase = lfo->phase + lfo->phi_increment;
+	if (lfo->phase >= 1.0f) {
+		lfo->phase = lfo->phase - 1.0f;
+	}
+
+	return out;
+}
+
+void set_lfo_rate(low_freq_oscillator* lfo, float rate_Hz, int sample_rate) {
+
+	lfo->phi_increment = rate_Hz / sample_rate;
+}
+
+// Helper functions
 float linear_to_log(float linear_val, float min, float max) {
     
 	return min * powf(max / min, linear_val);
@@ -241,6 +350,19 @@ float convert_to_range(float value, float min, float max) {
 	new_range = value * (max - min) + min;
 	return new_range;
 }
+
+float linear_interpolate(float fractional_index, float sample1, float sample2) {
+
+	float fraction, whole, difference;
+
+	whole = floorf(fractional_index);
+	fraction = fractional_index - whole;
+	difference = 1 - fraction;
+
+	return (sample1 * difference) + (sample2 * fraction);
+}
+
+// these two probably belong in distortion_effects
 
 float rectify(float sample) {
 

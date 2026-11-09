@@ -6,8 +6,8 @@
 #include "control_def.h"
 
 //#define M_E						2.718281828		// e to 9 decimal places
-#define MIN_GAIN_EXP_DIST		0.0316			// -30dB
-#define MAX_GAIN_EXP_DIST		31.6228			// 30dB
+#define 	MIN_GAIN_EXP_DIST		0.0316			// -30dB
+#define 	MAX_GAIN_EXP_DIST		31.6228			// 30dB
 
 //these must be initialized in main, before the Audio stream starts
 typedef void (*distortion_effect)(float*, int, int);
@@ -76,9 +76,12 @@ void distortion_free(distortion_engine* d_engine);
 //Wave shaping functions, processed sample-by-sample
 float tanh_distortion(float sample);
 float soft_knee_distortion(float sample);
+float bitcrush_distortion(float sample);
+float wavefolder_1(float sample);
+float wavefolder_2(float sample);
+
 float atanhf_clipping(float gain, float signal);
 float cubic_soft_clipping(float gain, float signal);
-float sin_fuzz(float gain, float signal);
 float simple_asym(float gain, float signal);
 float abs_fuzz(float gain, float signal);
 

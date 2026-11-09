@@ -13,8 +13,10 @@
 #include "distortion_effects.h"
 #include "EQ_effects.h"
 #include "compressor_effects.h"
-#include "distortion_exp.h"
 #include "delay_effects.h"
+#include "modulation_effects.h"
+#include "reverb_effects.h"
+#include "bitcrush_effects.h"
 #include "amp_model.h"
 
 #define UPDATE_INTERVAL         6                   // The number of controls that are checked an possibly updated per callback cycle
@@ -158,23 +160,30 @@ int main(void) {
     fx_chain_init(&chain);
 
     // Initialize model objects
-    envelope_follower e_fol;
-    envelope_follower_init(&e_fol, 10.0f, 50.0f, SAMPLE_RATE);
     compressor_engine c_engine;
-    compressor_init(&c_engine, &e_fol, SAMPLE_RATE);
+    compressor_init(&c_engine, SAMPLE_RATE);
     distortion_engine d_engine;
     build_fav_distort_1(&d_engine, up_sampling_factor, SAMPLE_RATE, FRAMES_PER_BUFFER);
-    //build_octave_fuzz(&d_engine, SAMPLE_RATE, FRAMES_PER_BUFFER);
-    //build_octave_fuzz_v2(&d_engine, SAMPLE_RATE, FRAMES_PER_BUFFER);
-    //stage_testing(&d_engine, SAMPLE_RATE, FRAMES_PER_BUFFER);
+    // stage_testing(&d_engine, SAMPLE_RATE, FRAMES_PER_BUFFER);
     EQ_engine eq_engine;
     EQ_init(&eq_engine, SAMPLE_RATE);
     delay_engine dl_engine;
     delay_engine_init(&dl_engine, SAMPLE_RATE, FRAMES_PER_BUFFER);
-
+    bit_engine b_engine;
+    bitcrush_init(&b_engine, SAMPLE_RATE);
+    // series_ap_reverb_engine r_engine;
+    // series_ap_reverb_engine_init(&r_engine, SAMPLE_RATE);
+    freeverb_reverb_engine r_engine;
+    freeverb_reverb_engine_init(&r_engine, SAMPLE_RATE);
+    // chorus_modulation_engine m_engine;
+    // chorus_modulation_init(&m_engine, SAMPLE_RATE);
+    flanger_modulation_engine m_engine;
+    flanger_modulation_init(&m_engine, SAMPLE_RATE);
+    // phaser_modulation_engine m_engine;
+    // phaser_modulation_init(&m_engine, SAMPLE_RATE);
+    
     amp_model a_mod;
     amp_model_init(&a_mod, SAMPLE_RATE, FRAMES_PER_BUFFER);
-
     master_effects_engine master_engine;
     master_effects_init(&master_engine, FRAMES_PER_BUFFER);
 
@@ -185,9 +194,16 @@ int main(void) {
     // append_ers[0] = fx_chain_append(&chain, &c_engine.base, process_compressor);
     // append_ers[1] = fx_chain_append(&chain, &d_engine.base, process_distortion);
     // append_ers[2] = fx_chain_append(&chain, &eq_engine.base, process_EQ);
-    append_ers[3] = fx_chain_append(&chain, &a_mod.base, process_amp_model);
-    // append_ers[4] = fx_chain_append(&chain, &dl_engine.base, process_delay);
-    append_ers[5] = fx_chain_append(&chain, &master_engine.base, process_master_volume);
+    // append_ers[3] = fx_chain_append(&chain, &b_engine.base, process_bitcrush);
+    // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_chorus);
+    append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_flanger);
+    // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_phaser);
+    // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_series_ap_reverb);
+    // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_freeverb);
+    // append_ers[6] = fx_chain_append(&chain, &dl_engine.base, process_delay);
+    append_ers[10] = fx_chain_append(&chain, &a_mod.base, process_amp_model);
+    append_ers[11] = fx_chain_append(&chain, &master_engine.base, process_master_volume);
+    
     
     void* chain_ptr = &chain;
 
