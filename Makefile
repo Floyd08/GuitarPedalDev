@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -O0 -Wall -Wextra -Iextensions/portaudio/include -Isrc -Isrc/ui -Iextensions/BiquadFilter -Isrc/util -mconsole
+CFLAGS = -g -O0 -Wall -Wextra -Iextensions/portaudio/include -Isrc -Isrc/ui -Isrc/effects -Iextensions/BiquadFilter -Isrc/util -mconsole
 LDFLAGS = -Lextensions/portaudio/build
 LDLIBS = -lportaudio -lwinmm -lole32 -luuid -lsetupapi -lstdc++ -lws2_32
 
@@ -7,7 +7,7 @@ PA_DIR = extensions/portaudio
 PA_BUILD_DIR = $(PA_DIR)/build
 PA_LIB = $(PA_BUILD_DIR)/libportaudio.a
 
-SRC = src/pedal_processor.c src/ui/ui_listener.c src/effects_engine.c src/master_effects.c src/compressor_effects.c src/distortion_effects.c src/distortion_exp.c src/EQ_effects.c src/delay_effects.c src/modulation_effects.c src/reverb_effects.c src/bitcrush_effects.c src/amp_model.c src/util/dsp_tools.c extensions/BiquadFilter/one_pole.c extensions/BiquadFilter/Biquad.c
+SRC = src/pedal_processor.c src/ui/ui_listener.c src/effects_engine.c src/amp_model.c $(wildcard src/effects/*.c) src/util/dsp_tools.c extensions/BiquadFilter/one_pole.c extensions/BiquadFilter/Biquad.c
 TARGET = pedal_processor.exe
 
 .PHONY: all clean clean-pa
