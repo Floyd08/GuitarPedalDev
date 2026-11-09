@@ -3,7 +3,7 @@ A software engine meant to run my own multi-effects unit
 
 Right now, this project does nothing like this. What you will actually see is an application that integrates Port Audio and uses it to capture audio signal from my Motu M2 Audio Interface. This is an interim step, to allow me to develop effects on a Windows platform. As these effects become ready to deploy to a microcontroller, I’ll swap out PortAudio for a Daisy Seed3’s own audio library functions.
 
-How to get started:
+# How to get started:
 To use this yourself, you would next to take two steps:
 1. You would need to build Port Audio as a shared library for your OS. If you are on Windows, the libportaudio.dll already in the repo might suffice for this
 2. You would need to edit pedal_processor.c to select your own audio interface. This happens at the top of main, and you will find it is currently hard-coded for my own Motu M2. In src/util you will find a source file "list_audio_device.c" If you compile and run this, you should see a list of ever audio device detected by Port Audio, and you should find the info you need to set your Audio interface in that list.
@@ -11,7 +11,7 @@ To use this yourself, you would next to take two steps:
 You can find a makefile that should allow you to build the application, but you made need to edit that to make sure the PA shared library is detected.
 
 
-Application structure in brief:
+# Application structure in brief:
 
 pedal_processor.c is where it all happens. It has a main and a callback function. Main initializes everything needed for Audio processing, finds my audio interface and gets its details from the OS, configures the audio stream, and then starts it.
 
