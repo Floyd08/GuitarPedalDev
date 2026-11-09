@@ -240,6 +240,7 @@ void verb_comb_update_gain(verb_comb_filter* vcf, float gain) {
 	vcf->comb_gain = gain;
 }
 
+
 // Upsampling and Downsampling
 void upsample(float* input_buf, int buffer_size, float* upsample_buf, int upsample_factor) {
 	
@@ -283,6 +284,7 @@ void downsample_stereo(float* upsampled_buf, int upsample_factor, float* output_
 	}
 }
 
+
 // Alias filtering(and image filtering)
 biquad* alias_init(int upsample_factor, int sample_rate) {
 	
@@ -314,6 +316,9 @@ void alias_filter_process_gc(biquad* alias_filter, int buffer_size, float* upsam
 	}
 }
 
+
+
+// Low frequency oscillator functions
 void low_freq_oscillator_init(low_freq_oscillator* lfo, float rate_Hz, int sample_rate) {
 
 	lfo->phase = 0.0f;
@@ -337,6 +342,7 @@ void set_lfo_rate(low_freq_oscillator* lfo, float rate_Hz, int sample_rate) {
 
 	lfo->phi_increment = rate_Hz / sample_rate;
 }
+
 
 // Helper functions
 float linear_to_log(float linear_val, float min, float max) {
@@ -363,7 +369,6 @@ float linear_interpolate(float fractional_index, float sample1, float sample2) {
 }
 
 // these two probably belong in distortion_effects
-
 float rectify(float sample) {
 
 	return fabsf(sample);

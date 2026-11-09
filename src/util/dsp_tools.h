@@ -109,7 +109,7 @@ void verb_comb_update_gain(verb_comb_filter* vcf, float gain);
 
 
 biquad* alias_init(int upsample_factor, int sample_rate);
-void alias_terminate(biquad* alias_filter);
+void alias_free(biquad* alias_filter);
 void alias_filter_process(biquad* alias_filter, int buffer_size, float* upsampled_buffer, int upsample_factor);
 void alias_filter_process_gc(biquad* alias_filter, int buffer_size, float* upsampled_buffer, int upsample_factor);
 
