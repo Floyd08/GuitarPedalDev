@@ -81,7 +81,7 @@
 #define		DFLT_PHS_WET		1.0f	
 #define		DFLT_PHS_WET_SET	1.0f
 
-// enumerate modulation controls
+// enumerate modulation effect controls
 // chorus controls
 enum {
 	CHRS_CTRL_RATE,

@@ -97,10 +97,10 @@ void bq_update(biquad* filter, int filter_type, float frequency, float Q, float 
 
 	// Load rest of data
 
-	tmp->prev_input_1 = 0.0;
-	tmp->prev_input_2 = 0.0;
-	tmp->prev_output_1 = 0.0;
-	tmp->prev_output_2 = 0.0;
+	// tmp->prev_input_1 = 0.0;
+	// tmp->prev_input_2 = 0.0;
+	// tmp->prev_output_1 = 0.0;
+	// tmp->prev_output_2 = 0.0;
 }
 
 float bq_process(biquad* bq, float input){
