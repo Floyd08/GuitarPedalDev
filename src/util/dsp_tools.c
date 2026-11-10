@@ -45,6 +45,7 @@ void set_env_release(envelope_follower* e_fol, float new_release_time, int sampl
 	e_fol->release_alpha = expf(-1.0f / (new_release_time * 0.001f * sample_rate));
 }
 
+
 // Ring Buffer
 int r_buffer_init(ring_buffer* r_buffer, unsigned int size) {
 
@@ -315,7 +316,6 @@ void alias_filter_process_gc(biquad* alias_filter, int buffer_size, float* upsam
 		upsampled_buffer[i] = filtered_sample * upsample_factor;
 	}
 }
-
 
 
 // Low frequency oscillator functions
