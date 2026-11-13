@@ -3,9 +3,9 @@
 #include "delay_effects.h"
 
 const ControlDef delay_controls[DLY_NUM_CONTROLS] = {
-	[DLY_CTRL_TIME] = {.name = "delay", .label = "Delay", .type = CTRL_KNOB, .row = 1, .default_value = DFLT_DELAY, .update_func = set_delay_time },
-	[DLY_CTRL_WET] = {.name = "delay_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = 1, .default_value = DFLT_WET_MIX, .update_func = set_wet_mix },
-	[DLY_CTRL_ECHO] = {.name = "echo", .label = "Echo", .type = CTRL_KNOB, .row = 1, .default_value = DFLT_DLY_GAIN, .update_func = set_feedback_gain },
+	[DLY_CTRL_TIME] = {.name = "delay", .label = "Delay", .type = CTRL_KNOB, .row = DELAY_ROW_NUM, .default_value = DFLT_DELAY, .update_func = set_delay_time, .units = "ms" },
+	[DLY_CTRL_WET] = {.name = "delay_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = DELAY_ROW_NUM, .default_value = DFLT_WET_MIX, .update_func = set_delay_wet_mix, .units = "" },
+	[DLY_CTRL_ECHO] = {.name = "echo", .label = "Echo", .type = CTRL_KNOB, .row = DELAY_ROW_NUM, .default_value = DFLT_DLY_GAIN, .update_func = set_delay_fdbk_gain, .units = "dB"  },
 };
 
 void delay_engine_init(delay_engine* dl_engine, int sample_rate, int buffer_size) {
@@ -14,6 +14,7 @@ void delay_engine_init(delay_engine* dl_engine, int sample_rate, int buffer_size
 	effects_engine_init(&base, "delay");
 	base.controls = delay_controls;
 	base.num_controls = DLY_NUM_CONTROLS;
+	base.colour = "#4682B4";
 	dl_engine->base = base;
 
 	// ring_buffer r_buf;
@@ -23,8 +24,8 @@ void delay_engine_init(delay_engine* dl_engine, int sample_rate, int buffer_size
 	dl_engine->low_pass = bq_new(LOWPASS, 3000, 0.7071, -3, sample_rate);
 	
 	set_delay_time(&dl_engine->base, DFLT_DELAY);
-	set_feedback_gain(&dl_engine->base, DFLT_DLY_GAIN);
-	set_wet_mix(&dl_engine->base, DFLT_WET_MIX);
+	set_delay_fdbk_gain(&dl_engine->base, DFLT_DLY_GAIN);
+	set_delay_wet_mix(&dl_engine->base, DFLT_WET_MIX);
 	
 	dl_engine->delay_scratch = calloc(buffer_size, sizeof(float));
 	dl_engine->sample_rate = sample_rate;
@@ -59,26 +60,32 @@ int ms_to_samples(int time_ms, int sample_rate) {
 	return time_in_samples;
 }
 
-void set_delay_time(effects_engine* engine, float time) {
+float set_delay_time(effects_engine* engine, float time) {
 	
 	delay_engine* dl_engine = (delay_engine*)engine;
 
 	unsigned int new_time = time * (MAX_DELAY - MIN_DELAY) + MIN_DELAY;			// the float is cast down to an int here, to avoid factional samples
 	dl_engine->delay_time_ms = new_time;
 	dl_engine->delay_time_samples = ms_to_samples(new_time, dl_engine->sample_rate);
+
+	return new_time;
 }
 
-void set_wet_mix(effects_engine* engine, float wet_mix) {
+float set_delay_wet_mix(effects_engine* engine, float wet_mix) {
 
 	delay_engine* dl_engine = (delay_engine*)engine;
 
 	dl_engine->wet_mix = wet_mix;
+
+	return wet_mix;
 }
 
-void set_feedback_gain(effects_engine* engine, float gain) {
+float set_delay_fdbk_gain(effects_engine* engine, float gain) {
 
 	delay_engine* dl_engine = (delay_engine*)engine;
 
 	float new_feedback = linear_to_log(gain, minus_12dB, _0dB);					// sets a logarithmic range for feedback gain
 	dl_engine->feedback_gain = new_feedback;
+
+	return linear_gain_to_decibels(new_feedback);
 }

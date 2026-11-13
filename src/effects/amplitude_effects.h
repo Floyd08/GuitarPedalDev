@@ -68,13 +68,13 @@ void harmonic_tremolo_amplitude_init(harmonic_trem_amplitude_engine* a_engine, i
 void process_harmonic_tremolo(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size);
 
 // classic tremollo control functions
-void set_tremolo_rate(effects_engine* engine, float rate);
-void set_tremolo_depth(effects_engine* engine, float depth);
-void set_tremolo_wet(effects_engine* engine, float wet);
+float set_tremolo_rate(effects_engine* engine, float rate);
+float set_tremolo_depth(effects_engine* engine, float depth);
+float set_tremolo_wet(effects_engine* engine, float wet);
 
 // harmonic tremollo control functions
-void set_harmonic_trem_rate(effects_engine* engine, float rate);
-void set_harmonic_trem_depth(effects_engine* engine, float depth);
-void set_harmonic_trem_wet(effects_engine* engine, float wet);
+float set_harmonic_trem_rate(effects_engine* engine, float rate);
+float set_harmonic_trem_depth(effects_engine* engine, float depth);
+float set_harmonic_trem_wet(effects_engine* engine, float wet);
 
 #endif

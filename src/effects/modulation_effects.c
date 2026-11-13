@@ -3,25 +3,29 @@
 #include "modulation_effects.h"
 
 const ControlDef chorus_controls[CHRS_NUM_CONTROLS] = {
-	[CHRS_CTRL_RATE] = {.name = "ch_rate", .label = "Rate", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_CH_RATE_SET, .update_func = set_chorus_rate},
-	[CHRS_CTRL_DEPTH] = {.name = "ch_depth", .label = "Depth", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_CH_DEPTH_SET, .update_func = set_chorus_depth},
-	[CHRS_CTRL_WET] = {.name = "ch_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_CH_WET, .update_func = set_chorus_wet}
+	[CHRS_CTRL_RATE] = {.name = "ch_rate", .label = "Rate", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_CH_RATE_SET, .update_func = set_chorus_rate, .units = "Hz" },
+	[CHRS_CTRL_DEPTH] = {.name = "ch_depth", .label = "Depth", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_CH_DEPTH_SET, .update_func = set_chorus_depth, .units = "ms" },
+	[CHRS_CTRL_WET] = {.name = "ch_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_CH_WET, .update_func = set_chorus_wet, .units = "" },
+	[CHRS_CTRL_BYPASS] = { .name = "ch_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = MODULATION_ROW_NUM, .default_value = OFF, .update_func = set_chorus_bypass, .units = "" }
 };
 
 const ControlDef flanger_controls[FLNG_NUM_CONTROLS] = {
-	[FLNG_CTRL_RATE] = {.name = "flng_rate", .label = "Rate", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_FLNG_RATE_SET, .update_func = set_flanger_rate},
-	[FLNG_CTRL_DEPTH] = {.name = "flng_depth", .label = "Depth", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_FLNG_DEPTH_SET, .update_func = set_flanger_depth},
-	[FLNG_CTRL_FDBK] = {.name = "flng_feedback", .label = "Feedback", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_FLNG_FDBK_SET, .update_func = set_flanger_feedback},
-	[FLNG_CTRL_FRWD] = {.name = "flng_forward", .label = "Feedforward", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_FLNG_FRWD_SET, .update_func = set_flanger_feedforward},
-	[FLNG_CTRL_BLND] = {.name = "flng_blend", .label = "Blend", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_FLNG_DRY_SET, .update_func = set_flanger_dry},
-	[FLNG_CTRL_HPF] = {.name = "flng_tone", .label = "Tone", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_FLNG_HPF_SET, .update_func = set_flanger_hpf}
+	[FLNG_CTRL_RATE] = {.name = "flng_rate", .label = "Rate", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_RATE_SET, .update_func = set_flanger_rate, .units = "Hz" },
+	[FLNG_CTRL_DEPTH] = {.name = "flng_depth", .label = "Depth", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_DEPTH_SET, .update_func = set_flanger_depth, .units = "ms" },
+	[FLNG_CTRL_FDBK] = {.name = "flng_feedback", .label = "Feedback", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_FDBK_SET, .update_func = set_flanger_feedback, .units = "" },
+	[FLNG_CTRL_FRWD] = {.name = "flng_forward", .label = "Feedforward", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_FRWD_SET, .update_func = set_flanger_feedforward, .units = "" },
+	[FLNG_CTRL_BLND] = {.name = "flng_blend", .label = "Blend", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_DRY_SET, .update_func = set_flanger_dry, .units = "" },
+	[FLNG_CTRL_HPF] = {.name = "flng_tone", .label = "Tone", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_HPF_SET, .update_func = set_flanger_hpf, .units = "Hz" },
+	[FLNG_CTRL_BYPASS] = { .name = "flng_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = MODULATION_ROW_NUM, .default_value = OFF, .update_func = set_flanger_bypass, .units = "" }
 };
 
 const ControlDef phaser_controls[PHS_NUM_CONTROLS] = {
-	[PHS_CTRL_RATE] = {.name = "phs_rate", .label = "Rate", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_PHS_RATE_SET, .update_func = set_phaser_rate},
-	[PHS_CTRL_DEPTH] = {.name = "phs_depth", .label = "Depth", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_PHS_DEPTH_SET, .update_func = set_phaser_depth},
-	[PHS_CTRL_DRY] = {.name = "phs_dry", .label = "Dry", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_PHS_DRY_SET, .update_func = set_phaser_dry},
-	[PHS_CTRL_WET] = {.name = "phs_wet", .label = "Wet", .type = CTRL_KNOB, .row = 5, .default_value = DFLT_PHS_WET_SET, .update_func = set_phaser_wet}
+	[PHS_CTRL_RATE] = {.name = "phs_rate", .label = "Rate", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_RATE_SET, .update_func = set_phaser_rate, .units = "Hz" },
+	[PHS_CTRL_DEPTH] = {.name = "phs_depth", .label = "Depth", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_DEPTH_SET, .update_func = set_phaser_depth, .units = "Octaves" },
+	[PHS_CTRL_DRY] = {.name = "phs_dry", .label = "Dry", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_DRY_SET, .update_func = set_phaser_dry, .units = "" },
+	[PHS_CTRL_WET] = {.name = "phs_wet", .label = "Wet", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_WET_SET, .update_func = set_phaser_wet, .units = "" },
+	[PHS_CTRL_FILTERS] = {.name = "phs_filters", .label = "Filters", .type = CTRL_ROTARY, .row = MODULATION_ROW_NUM	, .default_value = DFLT_NUM_FLTR_SET, .update_func = set_phaser_filters, .units = "", .positions = PHS_NUM_ALLPASS },
+	[PHS_CTRL_BYPASS] = { .name = "phs_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = MODULATION_ROW_NUM, .default_value = OFF, .update_func = set_phaser_bypass, .units = "" }
 };
 
 void chorus_modulation_init(chorus_modulation_engine* m_engine, int sample_rate) {
@@ -30,6 +34,7 @@ void chorus_modulation_init(chorus_modulation_engine* m_engine, int sample_rate)
 	effects_engine_init(&base, "chorus");
 	base.controls = chorus_controls;
 	base.num_controls = CHRS_NUM_CONTROLS;
+	base.colour = "#FF00FF";
 	m_engine->base = base;
 
 	float samples_per_ms = sample_rate / 1000;
@@ -45,7 +50,7 @@ void chorus_modulation_init(chorus_modulation_engine* m_engine, int sample_rate)
 
 	m_engine->sample_rate = sample_rate;
 	m_engine->samples_per_ms = samples_per_ms;
-
+	m_engine->bypass = OFF;
 }
 
 void flanger_modulation_init(flanger_modulation_engine* m_engine, int sample_rate) {
@@ -54,6 +59,7 @@ void flanger_modulation_init(flanger_modulation_engine* m_engine, int sample_rat
 	effects_engine_init(&base, "flanger");
 	base.controls = flanger_controls;
 	base.num_controls = FLNG_NUM_CONTROLS;
+	base.colour = "#9400D3";
 	m_engine->base = base;
 
 	float samples_per_ms = sample_rate / 1000;
@@ -73,6 +79,7 @@ void flanger_modulation_init(flanger_modulation_engine* m_engine, int sample_rat
 
 	m_engine->sample_rate = sample_rate;
 	m_engine->samples_per_ms = samples_per_ms;
+	m_engine->bypass = OFF;
 }
 
 void phaser_modulation_init(phaser_modulation_engine* m_engine, int sample_rate) {
@@ -81,6 +88,7 @@ void phaser_modulation_init(phaser_modulation_engine* m_engine, int sample_rate)
 	effects_engine_init(&base, "phaser");
 	base.controls = phaser_controls;
 	base.num_controls = PHS_NUM_CONTROLS;
+	base.colour = "#6A5ACD";
 	m_engine->base = base;
 
 	low_freq_oscillator_init(&m_engine->lfo, DFLT_PHS_RATE, sample_rate);
@@ -95,13 +103,18 @@ void phaser_modulation_init(phaser_modulation_engine* m_engine, int sample_rate)
 	set_phaser_depth(&m_engine->base, DFLT_PHS_DEPTH_SET);
 	set_phaser_dry(&m_engine->base, DFLT_PHS_DRY_SET);
 	set_phaser_wet(&m_engine->base, DFLT_PHS_WET_SET);
-	m_engine->sample_rate = sample_rate;
 
+	m_engine->sample_rate = sample_rate;
+	m_engine->bypass = OFF;
 }
 
 void process_chorus(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size) {
 
 	chorus_modulation_engine* m_engine = (chorus_modulation_engine*) engine;
+
+	if (m_engine->bypass == 0) {
+		return;
+	}
 
 	float sample, mod_delay, mod_delay_ms, mod_sample1, mod_sample2, mod_sample_interp, output;
 	int mod_delay_samples;
@@ -135,6 +148,10 @@ void process_chorus(effects_engine* engine, float* in_buf, float* out_buf, int b
 void process_flanger(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size) {
 
 	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
+
+	if (m_engine->bypass == 0) {
+		return;
+	}
 
 	float sample, mod_delay, mod_delay_ms, mod_sample1, mod_sample2, mod_sample_interp, output;
 	int mod_delay_samples;
@@ -170,6 +187,10 @@ void process_phaser(effects_engine* engine, float* in_buf, float* out_buf, int b
 
 	phaser_modulation_engine* m_engine = (phaser_modulation_engine*) engine;
 
+	if (m_engine->bypass == 0) {
+		return;
+	}
+
 	float output, dry_sig, wet_sig, lfo_output, new_apf_centre;
 
 	for(int i = 0; i < buffer_size; i++) {
@@ -200,16 +221,18 @@ void process_phaser(effects_engine* engine, float* in_buf, float* out_buf, int b
 
 
 // update functions for Chorus
-void set_chorus_rate(effects_engine* engine, float rate) {
+float set_chorus_rate(effects_engine* engine, float rate) {
 
 	chorus_modulation_engine* m_engine = (chorus_modulation_engine*) engine;
 
 	float new_rate = convert_to_range(rate, MIN_CH_RATE, MAX_CH_RATE);
 
 	set_lfo_rate(&m_engine->lfo, new_rate, m_engine->sample_rate);
+
+	return new_rate;
 }
 
-void set_chorus_depth(effects_engine* engine, float depth_ms) {
+float set_chorus_depth(effects_engine* engine, float depth_ms) {
 
 	chorus_modulation_engine* m_engine = (chorus_modulation_engine*) engine;
 
@@ -217,26 +240,42 @@ void set_chorus_depth(effects_engine* engine, float depth_ms) {
 
 	m_engine->depth_ms = new_depth;
 	m_engine->base_delay_samples = new_depth * m_engine->samples_per_ms;
+
+	return new_depth;
 }
 
-void set_chorus_wet(effects_engine* engine, float wet) {
+float set_chorus_wet(effects_engine* engine, float wet) {
 
 	chorus_modulation_engine* m_engine = (chorus_modulation_engine*) engine;
 
 	m_engine->wet_mix = wet;
+
+	return wet;
+}
+
+float set_chorus_bypass(effects_engine* engine, float bypass) {
+
+	chorus_modulation_engine* m_engine = (chorus_modulation_engine*) engine;
+
+	int new_bypass = (int)bypass;
+	m_engine->bypass = new_bypass;
+
+	return new_bypass;
 }
 
 // update functions for Flanger
-void set_flanger_rate(effects_engine* engine, float rate) {
+float set_flanger_rate(effects_engine* engine, float rate) {
 
 	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
 
 	float new_rate = convert_to_range(rate, MIN_FLNG_RATE, MAX_FLNG_RATE);
 
 	set_lfo_rate(&m_engine->lfo, new_rate, m_engine->sample_rate);
+
+	return new_rate;
 }
 
-void set_flanger_depth(effects_engine* engine, float depth_ms) {
+float set_flanger_depth(effects_engine* engine, float depth_ms) {
 
 	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
 
@@ -244,64 +283,88 @@ void set_flanger_depth(effects_engine* engine, float depth_ms) {
 
 	m_engine->depth_ms = new_depth;
 	m_engine->base_delay_samples = new_depth * m_engine->samples_per_ms;
+
+	return new_depth;
 }
 
-void set_flanger_feedback(effects_engine* engine, float feedback) {
+float set_flanger_feedback(effects_engine* engine, float feedback) {
 
 	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
 
 	float new_feedback = convert_to_range(feedback, MIN_FLNG_FDBK, MAX_FLNG_FDBK);
 
 	m_engine->feedback_gain = new_feedback;
+
+	return new_feedback;
 }
 
-void set_flanger_feedforward(effects_engine* engine, float feedforward) {
+float set_flanger_feedforward(effects_engine* engine, float feedforward) {
 
 	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
 
 	float new_feedforward = convert_to_range(feedforward, MIN_FLNG_FRWD, MAX_FLNG_FRWD);
 
 	m_engine->feedforward_gain = new_feedforward;
+
+	return new_feedforward;
 }
 
-void set_flanger_dry(effects_engine* engine, float dry) {
+float set_flanger_dry(effects_engine* engine, float dry) {
 
 	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
 
 	float new_dry = convert_to_range(dry, MIN_FLNG_DRY, MAX_FLNG_DRY);
 
 	m_engine->blend = new_dry;
+
+	return new_dry;
 }
 
-void set_flanger_hpf(effects_engine* engine, float cutoff) {
+float set_flanger_hpf(effects_engine* engine, float cutoff) {
 
 	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
 
 	float new_cutoff = convert_to_range(cutoff, MIN_FLNG_HPF, MAX_FLNG_HPF);
 
 	bq_update(m_engine->hpf, HIGHPASS, new_cutoff, BUTTERWORTH_Q, UNITY_GAIN, m_engine->sample_rate);
+
+	return new_cutoff;
+}
+
+float set_flanger_bypass(effects_engine* engine, float bypass) {
+
+	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
+
+	int new_bypass = (int)bypass;
+	m_engine->bypass = new_bypass;
+
+	return new_bypass;
 }
 
 // update functions for Phaser
-void set_phaser_rate(effects_engine* engine, float rate) {
+float set_phaser_rate(effects_engine* engine, float rate) {
 
 	phaser_modulation_engine* m_engine = (phaser_modulation_engine*) engine;
 
 	float new_rate = convert_to_range(rate, MIN_PHS_RATE, MAX_PHS_RATE);
 
 	set_lfo_rate(&m_engine->lfo, new_rate, m_engine->sample_rate);
+
+	return new_rate;
 }
 
-void set_phaser_depth(effects_engine* engine, float depth) {
+float set_phaser_depth(effects_engine* engine, float depth) {
 
 	phaser_modulation_engine* m_engine = (phaser_modulation_engine*) engine;
 
 	float new_depth = convert_to_range(depth, MIN_PHS_DEPTH, MAX_PHS_DEPTH);
 
 	m_engine->depth_octaves = new_depth;
+
+	return new_depth;
 }
 
-void set_phaser_dry(effects_engine* engine, float dry) {
+float set_phaser_dry(effects_engine* engine, float dry) {
 
 	phaser_modulation_engine* m_engine = (phaser_modulation_engine*) engine;
 
@@ -310,9 +373,11 @@ void set_phaser_dry(effects_engine* engine, float dry) {
 	normal = new_dry + m_engine->wet_gain;
 	m_engine->dry_gain = new_dry / normal;
 	m_engine->wet_gain = m_engine->wet_gain / normal;
+
+	return new_dry;
 }
 
-void set_phaser_wet(effects_engine* engine, float wet) {
+float set_phaser_wet(effects_engine* engine, float wet) {
 
 	phaser_modulation_engine* m_engine = (phaser_modulation_engine*) engine;
 
@@ -321,4 +386,26 @@ void set_phaser_wet(effects_engine* engine, float wet) {
 	normal = new_wet + m_engine->dry_gain;
 	m_engine->wet_gain = new_wet / normal;
 	m_engine->dry_gain = m_engine->dry_gain / normal;
+
+	return new_wet;
+}
+
+float set_phaser_filters(effects_engine* engine, float num_filt) {
+
+	phaser_modulation_engine* m_engine = (phaser_modulation_engine*) engine;
+
+	float new_num_filt = convert_to_rotary(num_filt, PHS_NUM_ALLPASS);
+	m_engine->phs_num_filters = new_num_filt;
+
+	return new_num_filt;
+}
+
+float set_phaser_bypass(effects_engine* engine, float bypass) {
+
+	phaser_modulation_engine* m_engine = (phaser_modulation_engine*) engine;
+
+	int new_bypass = (int)bypass;
+	m_engine->bypass = new_bypass;
+
+	return new_bypass;
 }

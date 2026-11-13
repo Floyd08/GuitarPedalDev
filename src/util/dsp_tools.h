@@ -120,6 +120,8 @@ void downsample_stereo(float* upsampled_buf, int upsample_factor, float* output_
 
 float linear_to_log(float linear_val, float min, float max);
 float convert_to_range(float value, float min, float max);
+float convert_to_rotary(float control_sig, int num_positions);
+float linear_gain_to_decibels(float linear);
 float linear_interpolate(float fractional_index, float sample1, float sample2);
 
 float rectify(float sample);

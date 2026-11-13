@@ -8,6 +8,7 @@ struct effects_engine {
 	const char* name;
 	const ControlDef* controls;
 	int num_controls;
+	const char* colour;
 
 };
 

@@ -56,13 +56,13 @@ void process_EQ(effects_engine* engine, float *in_buf, float *out_buf, int buffe
 // void EQ_update_filter_gain(EQ_engine* eq, float new_gain, FILTER_TYPES f_type);
 // void EQ_update_filter_centre(EQ_engine* eq, float new_centre_freq, FILTER_TYPES f_type);
 
-void EQ_update_lsf_gain(effects_engine* engine, float new_gain);
-void EQ_update_hsf_gain(effects_engine* engine, float new_gain);
-void EQ_update_mpf_gain(effects_engine* engine, float new_gain);
+float EQ_update_lsf_gain(effects_engine* engine, float new_gain);
+float EQ_update_hsf_gain(effects_engine* engine, float new_gain);
+float EQ_update_mpf_gain(effects_engine* engine, float new_gain);
 
-void EQ_update_lsf_centre(effects_engine* engine, float new_gain);
-void EQ_update_mpf_centre(effects_engine* engine, float new_gain);
-void EQ_update_hsf_centre(effects_engine* engine, float new_gain);
+float EQ_update_lsf_centre(effects_engine* engine, float new_gain);
+float EQ_update_mpf_centre(effects_engine* engine, float new_gain);
+float EQ_update_hsf_centre(effects_engine* engine, float new_gain);
 
 float EQ_convert_Hz(float value, float new_min, float new_max);
 float EQ_convert_dB(float value);

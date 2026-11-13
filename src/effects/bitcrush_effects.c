@@ -2,10 +2,10 @@
 #include "bitcrush_effects.h"
 
 const ControlDef bitcrusher_controls[BITCRSH_NUM_CONTROLS] = {
-	[BITCRSH_CTRL_GAIN] = { .name = "bit_gain", .label = "Gain", .type = CTRL_KNOB, .row = 6, .default_value = 0.01, .update_func = set_bit_gain },
-	[BITCRSH_CTRL_BTDPTH] = { .name = "bit_crush", .label = "Bit Crush", .type = CTRL_KNOB, .row = 6, .default_value = MAX_BIT_DEPTH_FL, .update_func = set_bit_depth },
-	[BITCRSH_CTRL_RATE] = { .name = "sample_crush", .label = "Sample Crush", .type = CTRL_KNOB, .row = 6, .default_value = 0.01, .update_func = set_sample_rate },
-	[BITCRSH_CTRL_BP] = { .name = "bit_bandpass", .label = "Filter", .type = CTRL_KNOB, .row = 6, .default_value = 0.01, .update_func = set_bit_bp }
+	[BITCRSH_CTRL_GAIN] = { .name = "bit_gain", .label = "Gain", .type = CTRL_KNOB, .row = DISTORTION_ROW_NUM, .default_value = 0.01, .update_func = set_btcrsh_gain, .units = "dB" },
+	[BITCRSH_CTRL_BTDPTH] = { .name = "bit_crush", .label = "Bit Crush", .type = CTRL_KNOB, .row = DISTORTION_ROW_NUM, .default_value = MAX_BIT_DEPTH_FL, .update_func = set_btcrsh_depth, .units = "bit" },
+	[BITCRSH_CTRL_RATE] = { .name = "sample_crush", .label = "Sample Crush", .type = CTRL_KNOB, .row = DISTORTION_ROW_NUM, .default_value = DFLT_SAMPLE_RATE_SET, .update_func = set_btcrsh_sample_rate, .units = "" },
+	[BITCRSH_CTRL_BP] = { .name = "bit_bandpass", .label = "Filter", .type = CTRL_KNOB, .row = DISTORTION_ROW_NUM, .default_value = DFLT_BP_SET, .update_func = set_btcrsh_bp, .units = "Hz" }
 };
 
 void bitcrush_init(bit_engine* b_engine, int sample_rate) {
@@ -14,6 +14,7 @@ void bitcrush_init(bit_engine* b_engine, int sample_rate) {
 	effects_engine_init(&base, "bitcrusher");
 	base.controls = bitcrusher_controls;
 	base.num_controls = BITCRSH_NUM_CONTROLS;
+	base.colour = "#8B4513";
 	b_engine->base = base;
 
 	b_engine->gain = _0dB;
@@ -67,7 +68,7 @@ void process_bitcrush(effects_engine* engine, float* in_buf, float* out_buf, int
 	}
 }
 
-void set_bit_depth(effects_engine* engine, float bit_depth) {
+float set_btcrsh_depth(effects_engine* engine, float bit_depth) {
 
 	bit_engine* b_engine = (bit_engine*)engine;
 
@@ -75,26 +76,32 @@ void set_bit_depth(effects_engine* engine, float bit_depth) {
 	b_engine->bit_depth = new_bit_depth;
 	b_engine->levels = powf(2, new_bit_depth);
 	b_engine->scale = (b_engine->levels / 2);
+
+	return new_bit_depth;
 }
 
-void set_bit_gain(effects_engine* engine, float gain) {
+float set_btcrsh_gain(effects_engine* engine, float gain) {
 
 	bit_engine* b_engine = (bit_engine*)engine;
 
 	float new_gain = linear_to_log(gain, _0dB, plus_12dB);
 	b_engine->gain = new_gain;
+
+	return linear_gain_to_decibels(new_gain);
 }
 
-void set_sample_rate(effects_engine* engine, float sample_rate) {
+float set_btcrsh_sample_rate(effects_engine* engine, float sample_rate) {
 
 	bit_engine* b_engine = (bit_engine*)engine;
 
 	float new_rate = (1 - sample_rate);												//flips the knob value
 	new_rate = convert_to_range(new_rate, MIN_SAMPLE_RATE, MAX_SAMPLE_RATE);
 	b_engine->rate_ratio = new_rate;
+
+	return new_rate * b_engine->sample_rate;
 }
 
-void set_bit_bp(effects_engine* engine, float band) {
+float set_btcrsh_bp(effects_engine* engine, float band) {
 
 	bit_engine* b_engine = (bit_engine*)engine;
 
@@ -112,4 +119,6 @@ void set_bit_bp(effects_engine* engine, float band) {
 	bq_update(b_engine->hpf1, HIGHPASS, band_hpfreq, BIT_BP_Q, UNITY_GAIN, b_engine->sample_rate);
 	bq_update(b_engine->hpf2, HIGHPASS, band_hpfreq, BIT_BP_Q, UNITY_GAIN, b_engine->sample_rate);
 	bq_update(b_engine->lpf, LOWPASS, band_lpfreq, BIT_BP_Q, UNITY_GAIN, b_engine->sample_rate);
+
+	return band_lpfreq - band_hpfreq;
 }

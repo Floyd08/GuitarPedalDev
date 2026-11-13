@@ -47,7 +47,8 @@ static int callback(const void *input, void *output, unsigned long frame_count,
     //     fprintf(stderr, "Glitch flags set! flags=0x%lx\n", (unsigned long)status_flags);
     // }
 
-    //Read atomic variables - these values are set by UI components. 
+    //Read atomic variables - these values are set by UI components.
+    float display_value;                                                                    // sent back to the UI for the control panel display 
     int ctrl_count = get_control_count();
     for (int i = 0; i < UPDATE_INTERVAL; i++) {
 
@@ -56,8 +57,10 @@ static int callback(const void *input, void *output, unsigned long frame_count,
         if (update_params[control_index] != current_params[control_index]) {
 
             param_update func = get_control_func(control_index);
-            func(e_points[control_index], update_params[control_index]);
+            display_value = func(e_points[control_index], update_params[control_index]);
             current_params[control_index] = update_params[control_index];
+
+            set_display_value(control_index, display_value);
         }
 
         if (control_index == ctrl_count - 1) {
@@ -138,20 +141,22 @@ int main(void) {
         return 1;
     }
 
-    const PaDeviceInfo *in_info = Pa_GetDeviceInfo(m2_in);
-    const PaDeviceInfo *out_info = Pa_GetDeviceInfo(m2_out);
+    // const PaDeviceInfo *in_info = Pa_GetDeviceInfo(m2_in);
+    // const PaDeviceInfo *out_info = Pa_GetDeviceInfo(m2_out);
 
     PaStreamParameters in_params = {
         .device = m2_in,
         .channelCount = NUM_IN_CHANNELS,
         .sampleFormat = paFloat32,
-        .suggestedLatency = in_info->defaultLowInputLatency,
+        .suggestedLatency = (double)FRAMES_PER_BUFFER / SAMPLE_RATE,
+        // .suggestedLatency = in_info->defaultLowInputLatency,
     };
     PaStreamParameters out_params = {
         .device = m2_out,
         .channelCount = NUM_OUT_CHANNELS,
         .sampleFormat = paFloat32,
-        .suggestedLatency = out_info->defaultLowOutputLatency,
+        .suggestedLatency = (double)FRAMES_PER_BUFFER / SAMPLE_RATE,
+        // .suggestedLatency = out_info->defaultLowOutputLatency,
     };
 
     //Initialize effect or filter parameters
@@ -166,20 +171,20 @@ int main(void) {
     distortion_engine d_engine;
     build_fav_distort_1(&d_engine, up_sampling_factor, SAMPLE_RATE, FRAMES_PER_BUFFER);
     // stage_testing(&d_engine, SAMPLE_RATE, FRAMES_PER_BUFFER);
-    EQ_engine eq_engine;
-    EQ_init(&eq_engine, SAMPLE_RATE);
+    // EQ_engine eq_engine;
+    // EQ_init(&eq_engine, SAMPLE_RATE);
     delay_engine dl_engine;
     delay_engine_init(&dl_engine, SAMPLE_RATE, FRAMES_PER_BUFFER);
-    bit_engine b_engine;
-    bitcrush_init(&b_engine, SAMPLE_RATE);
+    // bit_engine b_engine;
+    // bitcrush_init(&b_engine, SAMPLE_RATE);
     // series_ap_reverb_engine r_engine;
     // series_ap_reverb_engine_init(&r_engine, SAMPLE_RATE);
     freeverb_reverb_engine r_engine;
     freeverb_reverb_engine_init(&r_engine, SAMPLE_RATE);
-    // chorus_modulation_engine m_engine;
-    // chorus_modulation_init(&m_engine, SAMPLE_RATE);
-    flanger_modulation_engine m_engine;
-    flanger_modulation_init(&m_engine, SAMPLE_RATE);
+    chorus_modulation_engine m_engine;
+    chorus_modulation_init(&m_engine, SAMPLE_RATE);
+    // flanger_modulation_engine m_engine;
+    // flanger_modulation_init(&m_engine, SAMPLE_RATE);
     // phaser_modulation_engine m_engine;
     // phaser_modulation_init(&m_engine, SAMPLE_RATE);
     // tremolo_amplitude_engine a_engine;
@@ -197,17 +202,17 @@ int main(void) {
     // control registration is handled by fx_chain_append
     int append_ers[NUM_EFFECTS];
     // append_ers[0] = fx_chain_append(&chain, &c_engine.base, process_compressor);
-    // append_ers[1] = fx_chain_append(&chain, &d_engine.base, process_distortion);
+    append_ers[1] = fx_chain_append(&chain, &d_engine.base, process_distortion);
     // append_ers[2] = fx_chain_append(&chain, &eq_engine.base, process_EQ);
     // append_ers[3] = fx_chain_append(&chain, &b_engine.base, process_bitcrush);
     // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_chorus);
     // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_flanger);
     // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_phaser);
     // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_series_ap_reverb);
-    // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_freeverb);
+    append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_freeverb);
     // append_ers[6] = fx_chain_append(&chain, &dl_engine.base, process_delay);
     // append_ers[6] = fx_chain_append(&chain, &a_engine.base, process_tremolo);
-    append_ers[6] = fx_chain_append(&chain, &a_engine.base, process_harmonic_tremolo);
+    // append_ers[6] = fx_chain_append(&chain, &a_engine.base, process_harmonic_tremolo);
     append_ers[10] = fx_chain_append(&chain, &a_mod.base, process_amp_model);
     append_ers[11] = fx_chain_append(&chain, &master_engine.base, process_master_volume);
     
@@ -286,8 +291,9 @@ void process_fx_chain(fx_chain* chain, float* in_buf, float* out_buf, int buffer
 
     int m_num = chain->module_count, i = 0;
     //printf("processing audio\n");
-    chain->slots[i].process_func(chain->slots[i].engine, in_buf, out_buf, buffer_size);
-    i++;
+    memcpy( out_buf, in_buf, buffer_size * sizeof(float) );
+    // chain->slots[i].process_func(chain->slots[i].engine, in_buf, out_buf, buffer_size);
+    // i++;
     while (i < m_num) {
         
         chain->slots[i].process_func(chain->slots[i].engine, out_buf, out_buf, buffer_size);

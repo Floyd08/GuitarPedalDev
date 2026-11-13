@@ -53,7 +53,7 @@
 #define		DFLT_FLNG_HPF_SET	0.429f
 
 // phaser constants
-#define		PHS_NUM_ALLPASS		4					// number of 1st order Allpass filters in the phaser's array
+#define		PHS_NUM_ALLPASS		12					// number of 1st order Allpass filters in the phaser's array
 #define		DFLT_PHS_CENTRE		800					// sets the centre frequency of the allpass filters
 
 #define		MIN_PHS_RATE		0.5f	// in Hz
@@ -81,12 +81,15 @@
 #define		DFLT_PHS_WET		1.0f	
 #define		DFLT_PHS_WET_SET	1.0f
 
+#define		DFLT_NUM_FLTR_SET	1	
+
 // enumerate modulation effect controls
 // chorus controls
 enum {
 	CHRS_CTRL_RATE,
 	CHRS_CTRL_DEPTH,
 	CHRS_CTRL_WET,
+	CHRS_CTRL_BYPASS,
 	CHRS_NUM_CONTROLS
 };
 extern const ControlDef chorus_controls[CHRS_NUM_CONTROLS];
@@ -98,6 +101,7 @@ enum {
 	FLNG_CTRL_FRWD,
 	FLNG_CTRL_BLND,
 	FLNG_CTRL_HPF,
+	FLNG_CTRL_BYPASS,
 	FLNG_NUM_CONTROLS
 };
 extern const ControlDef flanger_controls[FLNG_NUM_CONTROLS];
@@ -107,6 +111,8 @@ enum {
 	PHS_CTRL_DEPTH,
 	PHS_CTRL_DRY,
 	PHS_CTRL_WET,
+	PHS_CTRL_FILTERS,
+	PHS_CTRL_BYPASS,
 	PHS_NUM_CONTROLS
 };
 extern const ControlDef phaser_controls[PHS_NUM_CONTROLS];
@@ -122,6 +128,7 @@ typedef struct {
 	float depth_ms;						// scaled by the output from the LFO. Range: 1 to 10 ms, dflt
 	float depth_samples;
 	float wet_mix;						// Dry/Wet mix control
+	int bypass;	
 
 	float samples_per_ms;				// sample rate / 1000, pre-computed
 	int sample_rate;
@@ -143,7 +150,8 @@ typedef struct {
 	float feedback_gain;				// gain applied to the feedback for flanger
 	float feedforward_gain;				// wet level and polarity, set notch depth
 	float blend;						// Dry level
-
+	int bypass;	
+	
 	float samples_per_ms;				// sample rate / 1000, pre-computed
 	int sample_rate;
 
@@ -159,7 +167,9 @@ typedef struct {
 	float apf_centre;					// the centre frequency of the allpass filters. The LFO modulates the centre frequency around this value
 	float depth_octaves;				// used to modulate the centre freq such that it remains symmetrical in terms of pitch rather than Hz
 	float dry_gain;						// Dry level
-	float wet_gain;						// Wet level	
+	float wet_gain;						// Wet level
+	int bypass;	
+
 	int sample_rate;
 
 } phaser_modulation_engine;
@@ -174,22 +184,26 @@ void phaser_modulation_init(phaser_modulation_engine* m_engine, int sample_rate)
 void process_phaser(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size);
 
 // chorus control functions
-void set_chorus_rate(effects_engine* engine, float rate);
-void set_chorus_depth(effects_engine* engine, float depth_ms);
-void set_chorus_wet(effects_engine* engine, float wet);
+float set_chorus_rate(effects_engine* engine, float rate);
+float set_chorus_depth(effects_engine* engine, float depth_ms);
+float set_chorus_wet(effects_engine* engine, float wet);
+float set_chorus_bypass(effects_engine* engine, float bypass);
 
 // flanger control functions
-void set_flanger_rate(effects_engine* engine, float rate);
-void set_flanger_depth(effects_engine* engine, float depth_ms);
-void set_flanger_feedback(effects_engine* engine, float feedback);
-void set_flanger_feedforward(effects_engine* engine, float feedforward);
-void set_flanger_dry(effects_engine* engine, float dry);
-void set_flanger_hpf(effects_engine* engine, float cutoff);
+float set_flanger_rate(effects_engine* engine, float rate);
+float set_flanger_depth(effects_engine* engine, float depth_ms);
+float set_flanger_feedback(effects_engine* engine, float feedback);
+float set_flanger_feedforward(effects_engine* engine, float feedforward);
+float set_flanger_dry(effects_engine* engine, float dry);
+float set_flanger_hpf(effects_engine* engine, float cutoff);
+float set_flanger_bypass(effects_engine* engine, float bypass);
 
 // phaser control functions
-void set_phaser_rate(effects_engine* engine, float rate);
-void set_phaser_depth(effects_engine* engine, float depth);
-void set_phaser_dry(effects_engine* engine, float dry);
-void set_phaser_wet(effects_engine* engine, float wet);
+float set_phaser_rate(effects_engine* engine, float rate);
+float set_phaser_depth(effects_engine* engine, float depth);
+float set_phaser_dry(effects_engine* engine, float dry);
+float set_phaser_wet(effects_engine* engine, float wet);
+float set_phaser_filters(effects_engine* engine, float num_filt);
+float set_phaser_bypass(effects_engine* engine, float bypass);
 
 #endif

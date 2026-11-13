@@ -2,16 +2,16 @@
 #include "amplitude_effects.h"
 
 const ControlDef tremolo_controls[TRM_NUM_CONTROLS] = {
-	[TRM_CTRL_RATE] = {.name = "trm_rate", .label = "Rate", .type = CTRL_KNOB, .row = 3, .default_value = DFLT_TRM_RATE_SET, .update_func = set_tremolo_rate},
-	[TRM_CTRL_DEPTH] = {.name = "trm_depth", .label = "Depth", .type = CTRL_KNOB, .row = 3, .default_value = DFLT_TRM_DEPTH_SET, .update_func = set_tremolo_depth},
-	[TRM_CTRL_WET] = {.name = "trm_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = 3, .default_value = DFLT_TRM_WET_SET, .update_func = set_tremolo_wet}
+	[TRM_CTRL_RATE] = {.name = "trm_rate", .label = "Rate", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_RATE_SET, .update_func = set_tremolo_rate, .units = "Hz" },
+	[TRM_CTRL_DEPTH] = {.name = "trm_depth", .label = "Depth", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_DEPTH_SET, .update_func = set_tremolo_depth, .units = "dB" },
+	[TRM_CTRL_WET] = {.name = "trm_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_WET_SET, .update_func = set_tremolo_wet, .units = "" }
 
 };
 
 const ControlDef harmonic_tremolo_controls[TRM_NUM_CONTROLS] = {
-	[TRM_CTRL_RATE] = {.name = "trm_rate", .label = "Rate", .type = CTRL_KNOB, .row = 3, .default_value = DFLT_TRM_RATE_SET, .update_func = set_harmonic_trem_rate},
-	[TRM_CTRL_DEPTH] = {.name = "trm_depth", .label = "Depth", .type = CTRL_KNOB, .row = 3, .default_value = DFLT_TRM_DEPTH_SET, .update_func = set_harmonic_trem_depth},
-	[TRM_CTRL_WET] = {.name = "trm_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = 3, .default_value = DFLT_TRM_WET_SET, .update_func = set_harmonic_trem_wet}
+	[TRM_CTRL_RATE] = {.name = "trm_rate", .label = "Rate", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_RATE_SET, .update_func = set_harmonic_trem_rate, .units = "Hz" },
+	[TRM_CTRL_DEPTH] = {.name = "trm_depth", .label = "Depth", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_DEPTH_SET, .update_func = set_harmonic_trem_depth, .units = "dB" },
+	[TRM_CTRL_WET] = {.name = "trm_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_WET_SET, .update_func = set_harmonic_trem_wet, .units = "" }
 
 };
 
@@ -22,6 +22,7 @@ void tremolo_amplitude_init(tremolo_amplitude_engine* a_engine, int sample_rate)
 	effects_engine_init(&base, "tremolo");
 	base.controls = tremolo_controls;
 	base.num_controls = TRM_NUM_CONTROLS;
+	base.colour = "#00FF7F";
 	a_engine->base = base;
 
 	low_freq_oscillator_init(&a_engine->lfo, DFLT_TRM_RATE, sample_rate);
@@ -61,6 +62,7 @@ void harmonic_tremolo_amplitude_init(harmonic_trem_amplitude_engine* a_engine, i
 	effects_engine_init(&base, "harmonic tremolo");
 	base.controls = harmonic_tremolo_controls;
 	base.num_controls = TRM_NUM_CONTROLS;
+	base.colour = "#7FFF00";
 	a_engine->base = base;
 
 	low_freq_oscillator_init(&a_engine->lfo, DFLT_TRM_RATE, sample_rate);
@@ -103,53 +105,65 @@ void process_harmonic_tremolo(effects_engine* engine, float* in_buf, float* out_
 }
 
 // classic tremollo control functions
-void set_tremolo_rate(effects_engine* engine, float rate) {
+float set_tremolo_rate(effects_engine* engine, float rate) {
 
 	tremolo_amplitude_engine* a_engine = (tremolo_amplitude_engine*) engine;
 
 	float new_rate = convert_to_range(rate, MIN_TRM_RATE, MAX_TRM_RATE);
 
 	set_lfo_rate(&a_engine->lfo, new_rate, a_engine->sample_rate);
+
+	return new_rate;
 }
 
-void set_tremolo_depth(effects_engine* engine, float depth) {
+float set_tremolo_depth(effects_engine* engine, float depth) {
 
 	tremolo_amplitude_engine* a_engine = (tremolo_amplitude_engine*) engine;
 
 	float new_depth = convert_to_range(depth, MIN_TRM_DEPTH, MAX_TRM_DEPTH);
 
 	a_engine->depth = new_depth;
+
+	return new_depth;
 }
 
-void set_tremolo_wet(effects_engine* engine, float wet) {
+float set_tremolo_wet(effects_engine* engine, float wet) {
 
 	tremolo_amplitude_engine* a_engine = (tremolo_amplitude_engine*) engine;
 
 	a_engine->wet = wet;
+
+	return wet;
 }
 
 // classic tremollo control functions
-void set_harmonic_trem_rate(effects_engine* engine, float rate) {
+float set_harmonic_trem_rate(effects_engine* engine, float rate) {
 
 	harmonic_trem_amplitude_engine* a_engine = (harmonic_trem_amplitude_engine*) engine;
 
 	float new_rate = convert_to_range(rate, MIN_TRM_RATE, MAX_TRM_RATE);
 
 	set_lfo_rate(&a_engine->lfo, new_rate, a_engine->sample_rate);
+
+	return new_rate;
 }
 
-void set_harmonic_trem_depth(effects_engine* engine, float depth) {
+float set_harmonic_trem_depth(effects_engine* engine, float depth) {
 
 	harmonic_trem_amplitude_engine* a_engine = (harmonic_trem_amplitude_engine*) engine;
 
 	float new_depth = convert_to_range(depth, MIN_TRM_DEPTH, MAX_TRM_DEPTH);
 
 	a_engine->depth = new_depth;
+
+	return new_depth;
 }
 
-void set_harmonic_trem_wet(effects_engine* engine, float wet) {
+float set_harmonic_trem_wet(effects_engine* engine, float wet) {
 
 	harmonic_trem_amplitude_engine* a_engine = (harmonic_trem_amplitude_engine*) engine;
 
 	a_engine->wet = wet;
+
+	return wet;
 }

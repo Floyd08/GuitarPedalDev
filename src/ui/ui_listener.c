@@ -8,9 +8,19 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 
+// Windows reports "port unreachable" on a UDP socket as an error on the NEXT recvfrom, which
+// would happen every time we send to a UI that has closed. This ioctl turns that off.
+// MinGW doesn't always define it, so it is spelled out here.
+#ifndef SIO_UDP_CONNRESET
+#define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
+#endif
+
 #define CONTROL_PORT            9001            // The UDP port number the UI will send control signals to
 #define CONTROLS_FILE    "src/ui/controls.json" // Written when the listener starts and deleted when it stops. The UI reads it to build itself.
 #define MAX_NAME_LENGTH         15              // The longest control name that parse_message can read (it reads 15 characters)
+#define LISTEN_TIMEOUT_US       20000           // How long the listener waits for a message before checking for display values to send (20 ms)
+#define DISPLAY_RESEND_MS       1000            // Every display value is re-sent this often, in case a UDP packet was lost
+#define MAX_ROTARY_POSITIONS    100             // The most positions a rotary control can have. Values travel with 3 decimals, which keeps this many apart
 
 //The combined list of every control registered by every module
 //Slot i of each array belongs to control i. The index a module gets back from register_controls() is its first slot
@@ -18,13 +28,29 @@ static const ControlDef *g_defs[MAX_CONTROLS];  // each control's definition. Th
 static int g_rows[MAX_CONTROLS];                // the UI row each control appears in, after stacking the modules
 static int g_count = 0;                         // how many controls are registered
 
+//The control sets ("groups"). Each call to register_controls() makes one group. The UI draws an
+//outline around a group's controls, with the group's label on the top left
+//A group always has at least one control, so there can never be more groups than controls
+static int g_group_of[MAX_CONTROLS];            // which group each control belongs to
+static const char *g_group_label[MAX_CONTROLS]; // each group's label (the engine's name)
+static const char *g_group_colour[MAX_CONTROLS]; // each group's colour (the engine's colour). NULL = the UI's default
+static int g_group_count = 0;                   // how many groups are registered
+
 //Variables shared between the UI listener thread, and the callback thread
 //These variables are written to by the listener thread, and read by the callback thread
 static _Atomic float g_values[MAX_CONTROLS];    // the latest value of each control
 
+//Going the other way: written by the callback thread (set_display_value), read by the listener thread
+static _Atomic float g_display[MAX_CONTROLS];   // the value each setter last applied, in real units. NAN = not known yet
+
 static _Atomic int g_running = 0;           // Listener loop runs while g_running = 1
 static SOCKET g_sock = INVALID_SOCKET;      // holds the socket pointer
-static HANDLE g_thread = NULL;              // holds tge thread pointer
+static HANDLE g_thread = NULL;              // holds the thread pointer
+
+//Only the listener thread touches these, so they need no atomics
+static struct sockaddr_in g_ui_addr;        // where the UI's last valid message came from, so we know where to reply
+static int g_have_ui = 0;                   // 1 once a valid message has arrived
+static float g_sent[MAX_CONTROLS];          // the display value last sent for each control
 
 //Registering a module's controls
 //All the checks happen before anything is added, so a bad table never leaves a module half registered
@@ -64,6 +90,10 @@ int register_controls(effects_engine* engine) {
 			fprintf(stderr, "register_controls: control \"%s\" has a default outside 0.0 to 1.0\n", name);
 			return -1;
 		}
+		if (defs[i].type == CTRL_ROTARY && (defs[i].positions < 2 || defs[i].positions > MAX_ROTARY_POSITIONS)) {
+			fprintf(stderr, "register_controls: rotary control \"%s\" needs 2 to %d positions\n", name, MAX_ROTARY_POSITIONS);
+			return -1;
+		}
 
 		//Names are the key on the wire, so each one must be unique across ALL modules
 		for (int j = 0; j < g_count; j++) {
@@ -83,11 +113,20 @@ int register_controls(effects_engine* engine) {
 	//Everything checked out, so add the controls
 	int base = g_count;
 	int last_row = 0;
+
+	//This engine's controls form one group on the UI, labelled and coloured by the engine
+	int group = g_group_count;
+	g_group_label[group] = engine->name;
+	g_group_colour[group] = engine->colour;
+	g_group_count++;
+
 	for (int i = 0; i < count; i++) {
-		
+
 		g_defs[base + i] = &defs[i];																		//Adds a Control Def object to the list held above
+		g_group_of[base + i] = group;																		//Records which group the control belongs to
 		g_rows[base + i] = defs[i].row;        																//stack add this module to it's designated row
-		atomic_store_explicit(&g_values[base + i], defs[i].default_value, memory_order_relaxed);			//Sets the value in the shared paramsa array
+		atomic_store_explicit(&g_values[base + i], defs[i].default_value, memory_order_relaxed);			//Sets the value in the shared params array
+		atomic_store_explicit(&g_display[base + i], NAN, memory_order_relaxed);							//Nothing to show until the setter has run
 		update_funcs[base + i] = defs[i].update_func;
 		e_points[base + i] = engine;
 		
@@ -129,6 +168,14 @@ int get_control_count(void) {
 	return g_count;
 }
 
+void set_display_value(int index, float value) {
+
+	if (index < 0 || index >= g_count) {
+		return;                             // not a valid control
+	}
+	atomic_store_explicit(&g_display[index], value, memory_order_relaxed);
+}
+
 //cleans up the failed socket setup
 static void socket_setup_failure() {
 
@@ -137,16 +184,17 @@ static void socket_setup_failure() {
 }
 
 //parse a message from the UI
-static void parse_message(const char *message) {
+//Returns 1 if it named a registered control, 0 if it was ignored
+static int parse_message(const char *message) {
 
 	char name[16];
 	float value;
 
 	if (sscanf(message, "%15s %f", name, &value) != 2){
-		return;                             //message string is malformed, ignore it
+		return 0;                           //message string is malformed, ignore it
 	}
 	if (!isfinite(value)) {
-		return;                             //check for NaN or infinite values
+		return 0;                           //check for NaN or infinite values
 	}
 	if (value < 0.0f) {
 		value = 0.0f;                       //This should be impossible
@@ -160,23 +208,69 @@ static void parse_message(const char *message) {
 	for (int i = 0; i < g_count; i++) {
 		if (strcmp(name, g_defs[i]->name) == 0) {
 			atomic_store_explicit(&g_values[i], value, memory_order_relaxed);
-			return;
+			return 1;
 		}
 	}
 	//No control matched, so the name is unknown and the message is ignored
+	return 0;
+}
+
+/*  Sending display values back to the UI
+*   Each one goes as its own datagram, in the same "name value" form the UI sends us:
+*       "trm_rate 1.57"
+*   Only controls with units are sent, and only once the setter has reported a value.
+*   With force = 0, only values that changed since they were last sent go out.
+*   With force = 1, everything goes out (the periodic resend, or a new UI appeared).
+*   Called from the listener thread only.
+*/
+static void send_display_values(int force) {
+
+	if (!g_have_ui) {
+		return;                             //nobody to send to yet
+	}
+
+	char msg[64];
+	for (int i = 0; i < g_count; i++) {
+		if (g_defs[i]->units == NULL) {
+			continue;                       //this control has no value line on the UI
+		}
+		float v = atomic_load_explicit(&g_display[i], memory_order_relaxed);
+		if (!isfinite(v)) {
+			continue;                       //not known yet
+		}
+		if (!force && v == g_sent[i]) {
+			continue;                       //unchanged
+		}
+
+		int len = snprintf(msg, sizeof msg, "%s %.6g", g_defs[i]->name, v);
+		if (len > 0 && len < (int)sizeof msg) {
+			sendto(g_sock, msg, len, 0, (const struct sockaddr *)&g_ui_addr, sizeof g_ui_addr);
+		}
+		g_sent[i] = v;                      //a failed send is caught by the next periodic resend
+	}
 }
 
 /*  Describing the controls: writing controls.json
-*   The file looks like this, with one control per line. JSON is a plain text format
-*   that Python can read directly:
-*   {"controls": [
-*     {"name": "gain", "label": "Gain", "type": "knob", "row": 0, "default": 0.500},
+*   The file looks like this, with one group and one control per line. JSON is a plain
+*   text format that Python can read directly. A control's "group" is a position in the
+*   "groups" list, counting from 0:
+*   {"groups": [
+*     {"label": "distortion", "colour": "#d98c2b"},
+*     ...
+*   ],
+*   "controls": [
+*     {"name": "gain", "label": "Gain", "type": "knob", "group": 0, "row": 0, "default": 0.500, "units": "dB"},
+*     {"name": "stages", "label": "Stages", "type": "rotary", "group": 0, "row": 0, "default": 0.000, "positions": 12, "units": ""},
 *     ...
 *   ]}
 */
 static const char *type_name(ControlType t) {
 
-	return t == CTRL_SWITCH ? "switch" : "knob";
+	switch (t) {
+		case CTRL_SWITCH:   return "switch";
+		case CTRL_ROTARY:   return "rotary";
+		default:            return "knob";
+	}
 }
 
 //Writes a C string as a JSON string: in quotes, with " and \ escaped, and any invisible
@@ -199,6 +293,17 @@ static void write_json_string(FILE *f, const char *s) {
 	fputc('"', f);
 }
 
+//The same, but a NULL string is written as JSON's null, which tells the UI "not set"
+static void write_json_string_or_null(FILE *f, const char *s) {
+
+	if (s != NULL) {
+		write_json_string(f, s);
+	}
+	else {
+		fputs("null", f);
+	}
+}
+
 static int write_controls_file(void) {
 
 	FILE *f = fopen(CONTROLS_FILE, "w");
@@ -206,7 +311,19 @@ static int write_controls_file(void) {
 		return -1;
 	}
 
-	fputs("{\"controls\": [\n", f);
+	//The groups come first, so the UI knows each one's label and colour
+	fputs("{\"groups\": [\n", f);
+	for (int i = 0; i < g_group_count; i++) {
+
+		fputs(i > 0 ? ",\n  " : "  ", f);   //commas go BETWEEN entries
+		fputs("{\"label\": ", f);
+		write_json_string_or_null(f, g_group_label[i]);
+		fputs(", \"colour\": ", f);
+		write_json_string_or_null(f, g_group_colour[i]);     //null tells the UI to use its default colour
+		fputc('}', f);
+	}
+
+	fputs("\n],\n\"controls\": [\n", f);
 	for (int i = 0; i < g_count; i++) {
 		const ControlDef *d = g_defs[i];
 
@@ -215,8 +332,14 @@ static int write_controls_file(void) {
 		write_json_string(f, d->name);
 		fputs(", \"label\": ", f);
 		write_json_string(f, d->label ? d->label : d->name);
-		fprintf(f, ", \"type\": \"%s\", \"row\": %d, \"default\": %.3f}",
-				type_name(d->type), g_rows[i], d->default_value);
+		fprintf(f, ", \"type\": \"%s\", \"group\": %d, \"row\": %d, \"default\": %.3f",
+				type_name(d->type), g_group_of[i], g_rows[i], d->default_value);
+		if (d->type == CTRL_ROTARY) {
+			fprintf(f, ", \"positions\": %d", d->positions);     //only a rotary has fixed positions
+		}
+		fputs(", \"units\": ", f);
+		write_json_string_or_null(f, d->units);             //null tells the UI not to show a value line
+		fputc('}', f);
 	}
 	fputs("\n]}\n", f);
 
@@ -232,22 +355,49 @@ static DWORD WINAPI listener_thread(LPVOID arg) {
 	char buf[256];
 	(void)arg;
 
+	DWORD last_resend = GetTickCount();
+
 	while (atomic_load_explicit(&g_running, memory_order_relaxed)) {
 
 		fd_set fds;
 		FD_ZERO(&fds);
 		FD_SET(g_sock, &fds);
-		struct timeval tv = {0, 100000};
-		if (select(0, &fds, NULL, NULL, &tv) <= 0) {
-			continue;
+		struct timeval tv = {0, LISTEN_TIMEOUT_US};
+
+		if (select(0, &fds, NULL, NULL, &tv) > 0) {
+
+			struct sockaddr_in from;
+			int from_len = sizeof from;
+			int n = recvfrom(g_sock, buf, sizeof buf - 1, 0, (struct sockaddr *)&from, &from_len);
+
+			if (n > 0) {
+				buf[n] = '\0';
+				if (parse_message(buf)) {
+					//A valid message tells us where the UI is. If it's a new UI (or the panel
+					//was restarted on a new port), send it everything straight away
+					int is_new = !g_have_ui
+								 || from.sin_port != g_ui_addr.sin_port
+								 || from.sin_addr.s_addr != g_ui_addr.sin_addr.s_addr;
+					g_ui_addr = from;
+					g_have_ui = 1;
+					if (is_new) {
+						send_display_values(1);
+						last_resend = GetTickCount();
+					}
+				}
+			}
 		}
 
-		int n = recvfrom(g_sock, buf, sizeof buf - 1, 0, NULL, NULL);
-		if (n <= 0) {
-			continue;
+		//Whether or not a message arrived, pass on any values the setters have changed
+		//Unsigned subtraction keeps this correct when GetTickCount wraps (every 49 days)
+		DWORD now = GetTickCount();
+		if (now - last_resend >= DISPLAY_RESEND_MS) {
+			send_display_values(1);
+			last_resend = now;
 		}
-		buf[n] = '\0';
-		parse_message(buf);
+		else {
+			send_display_values(0);
+		}
 	}
 	return 0;
 }
@@ -289,6 +439,15 @@ int start_control_listener(void) {
 		socket_setup_failure();
 		return -1;
 	}
+
+	//Stop a closed UI from turning into recvfrom errors (see SIO_UDP_CONNRESET above)
+	//If this fails nothing breaks, the listener just ignores the odd failed recvfrom
+	BOOL report_reset = FALSE;
+	DWORD bytes_returned = 0;
+	WSAIoctl(g_sock, SIO_UDP_CONNRESET, &report_reset, sizeof report_reset, NULL, 0, &bytes_returned, NULL, NULL);
+
+	//Forget any UI from a previous run
+	g_have_ui = 0;
 
 	//If we've reached this point, thread setup has been successful
 	//Now we start the listener thread

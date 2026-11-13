@@ -42,8 +42,8 @@ typedef struct {
 void compressor_init(compressor_engine* c_engine, int sample_rate);
 void process_compressor(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size);
 
-void set_comp_attack(effects_engine* engine, float attack);
-void set_comp_release(effects_engine* engine, float release);
-void set_makeup_gain(effects_engine* engine, float gain);
-void set_threshold(effects_engine* engine, float threshold);
-void set_ratio(effects_engine* engine, float ratio);
+float set_comp_attack(effects_engine* engine, float attack);
+float set_comp_release(effects_engine* engine, float release);
+float set_comp_mkp_gain(effects_engine* engine, float gain);
+float set_comp_threshold(effects_engine* engine, float threshold);
+float set_comp_ratio(effects_engine* engine, float ratio);

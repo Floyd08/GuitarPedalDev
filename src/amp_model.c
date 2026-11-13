@@ -4,12 +4,12 @@
 #include "amp_model.h"
 
 const ControlDef amp_model_controls[AMP_NUM_CONTROLS] = {
-	[AMP_CTRL_GAIN] = { .name = "amp_gain", .label = "Gain", .type = CTRL_KNOB, .row = 4, .default_value = 0.17f, .update_func = set_preamp_gain },
-	[AMP_CTRL_BASS] = { .name = "amp_bass", .label = "Bass", .type = CTRL_KNOB, .row = 4, .default_value = DFLT_GAIN_LINEAR, .update_func = set_preamp_bass },
-	[AMP_CTRL_MID] = { .name = "amp_mid", .label = "Mid", .type = CTRL_KNOB, .row = 4, .default_value = DFLT_GAIN_LINEAR, .update_func = set_preamp_mid },
-	[AMP_CTRL_TRBL] = { .name = "amp_treble", .label = "Treble", .type = CTRL_KNOB, .row = 4, .default_value = DFLT_GAIN_LINEAR, .update_func = set_preamp_treble },
-	[AMP_CTRL_MID_SWP] = { .name = "amp_mid_swp", .label = "Mid Sweep", .type = CTRL_KNOB, .row = 4, .default_value = 0.2, .update_func = set_preamp_mid_centre },
-	[AMP_CTRL_DRVE] = { .name = "amp_drive", .label = "Drive", .type = CTRL_KNOB, .row = 4, .default_value = 0.17f, .update_func = set_preamp_drive}
+	[AMP_CTRL_GAIN] = { .name = "amp_gain", .label = "Gain", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = 0.17f, .update_func = set_preamp_gain, .units = "dB" },
+	[AMP_CTRL_BASS] = { .name = "amp_bass", .label = "Bass", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = DFLT_GAIN_LINEAR, .update_func = set_preamp_bass, .units = "dB"  },
+	[AMP_CTRL_MID] = { .name = "amp_mid", .label = "Mid", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = DFLT_GAIN_LINEAR, .update_func = set_preamp_mid, .units = "dB"  },
+	[AMP_CTRL_TRBL] = { .name = "amp_treble", .label = "Treble", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = DFLT_GAIN_LINEAR, .update_func = set_preamp_treble, .units = "dB"  },
+	[AMP_CTRL_MID_SWP] = { .name = "amp_mid_swp", .label = "Mid Sweep", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = 0.2, .update_func = set_preamp_mid_centre, .units = "Hz" },
+	[AMP_CTRL_DRVE] = { .name = "amp_drive", .label = "Drive", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = 0.17f, .update_func = set_preamp_drive, .units = "dB" }
 };
 
 void tone_stack_init(tone_stack* tone, int sample_rate) {
@@ -170,6 +170,7 @@ void amp_model_init(amp_model* a_mod, int sample_rate, int buffer_size) {
 	effects_engine_init(&base, "tube_amp");
 	base.controls = amp_model_controls;
 	base.num_controls = AMP_NUM_CONTROLS;
+	base.colour = "#FFA500";
 
 	// set up sub modules
 	pre_amp pr_amp;
@@ -198,61 +199,69 @@ void process_amp_model(effects_engine* engine, float *in_buf, float *out_buf, in
 }
 
 // update functions
-void set_preamp_gain(effects_engine* engine, float gain) {
+float set_preamp_gain(effects_engine* engine, float gain) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
 	float converted_gain = linear_to_log(gain, minus_3dB, plus_21dB);
 	a_mod->pr_amp.gain = converted_gain;
+
+	return linear_gain_to_decibels(converted_gain);
 }
 
-void set_preamp_drive(effects_engine* engine, float gain) {
+float set_preamp_drive(effects_engine* engine, float drive) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_gain = linear_to_log(gain, minus_3dB, plus_21dB);
-	a_mod->pr_amp.drive = converted_gain;
+	float converted_drive = linear_to_log(drive, minus_3dB, plus_21dB);
+	a_mod->pr_amp.drive = converted_drive;
+
+	return linear_gain_to_decibels(converted_drive);
 }
 
-void set_preamp_bass(effects_engine* engine, float bass) {
+float set_preamp_bass(effects_engine* engine, float bass) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_bass = linear_to_log(bass, 0.001, 1);
-	converted_bass = convert_to_range(converted_bass, MIN_TS_GAIN, MAX_TS_GAIN);
+	float converted_bass = convert_to_range(bass, MIN_TS_GAIN, MAX_TS_GAIN);
 	
 	a_mod->pr_amp.tone.bass_gain = converted_bass;
 	op_update(a_mod->pr_amp.tone.bass_lsf, OP_LOWSHELF, DFLT_BASS_FREQ, converted_bass, a_mod->pr_amp.tone.sample_rate);
+
+	return converted_bass;
 }
 
-void set_preamp_mid(effects_engine* engine, float mid) {
+float set_preamp_mid(effects_engine* engine, float mid) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_mid = linear_to_log(mid, 0.001, 1);
-	converted_mid = convert_to_range(converted_mid, MIN_TS_GAIN, MAX_TS_GAIN);
-	//fprintf(stderr, "control signal: %f, converted mid: %f, current centre: %f,  sample rate: %f\n", mid, converted_mid, a_mod->pr_amp.tone.mid_freq, a_mod->pr_amp.tone.sample_rate);
+	float converted_mid = convert_to_range(mid, MIN_TS_GAIN, MAX_TS_GAIN);
+	
 	a_mod->pr_amp.tone.mid_gain = converted_mid;
 	bq_update(a_mod->pr_amp.tone.mid_peak, PEAK, a_mod->pr_amp.tone.mid_freq, BUTTERWORTH_Q, converted_mid, a_mod->pr_amp.tone.sample_rate);
 
+	return converted_mid;
 }
 
-void set_preamp_treble(effects_engine* engine, float treble) {
+float set_preamp_treble(effects_engine* engine, float treble) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_treble = linear_to_log(treble, 0.001, 1);
-	converted_treble = convert_to_range(converted_treble, MIN_TS_GAIN, MAX_TS_GAIN);
+	float converted_treble = convert_to_range(treble, MIN_TS_GAIN, MAX_TS_GAIN);
 	
 	a_mod->pr_amp.tone.treble_gain = converted_treble;
 	op_update(a_mod->pr_amp.tone.treble_hsf, OP_HIGHSHELF, DFLT_BASS_FREQ, converted_treble, a_mod->pr_amp.tone.sample_rate);
+
+	return converted_treble;
 }
 
-void set_preamp_mid_centre(effects_engine* engine, float centre) {
+float set_preamp_mid_centre(effects_engine* engine, float centre) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
 	float new_centre = centre * (MAX_MID_CENTRE- MIN_MID_CENTRE) + MIN_MID_CENTRE;
 	a_mod->pr_amp.tone.mid_freq = new_centre;
 	bq_update(a_mod->pr_amp.tone.mid_peak, PEAK, new_centre, BUTTERWORTH_Q, a_mod->pr_amp.tone.mid_gain, a_mod->pr_amp.tone.sample_rate);
+
+	return new_centre;
 }

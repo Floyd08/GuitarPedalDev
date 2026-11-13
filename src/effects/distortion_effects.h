@@ -19,7 +19,8 @@ typedef float (*distortion_effect_bysample)(float);
 enum {
 	DIST_CTRL_GAIN,
 	DIST_CTRL_BIAS,
-	DIST_CTRL_DSTR_WET,
+	DIST_CTRL_WET,
+	DIST_CTRL_BYPS,
 	// DIST_CTRL_LVL,
 	DIST_NUM_CONTROLS
 };
@@ -58,16 +59,18 @@ typedef struct {
 	int control_stages[3];				// Holds the indices of the stage a control points to
 	int up_factor;						// A multiple for upsampling. an value less than 2 will skip upsampling(and alias filtering) altogether
 	float* oversampling_buffer;			// A pointer to a larger float buffer. It's size is buffer_size * up_factor
-	
+	int bypass;
+
 	int buffer_size;					// The size of the buffer used by the audio stream(not for oversampling)
 
 } distortion_engine;
 
 void distortion_init(distortion_engine* d_engine, distortion_stage** d_stages, int num_stages, int up_factor, int sample_rate, int buffer_size);
 void distortion_stage_init(distortion_stage* d_stage, biquad** pre_filters, int num_pre_filters, float rectification, float bias, float gain, float dstr_wet, distortion_effect_bysample d_effect, biquad** post_filters, int num_post_filters);
-void set_distort_gain (effects_engine* engine, float gain);
-void set_distort_bias (effects_engine* engine, float bias);
-void set_distort_wet_mix (effects_engine* engine, float wet);
+float set_distort_gain (effects_engine* engine, float gain);
+float set_distort_bias (effects_engine* engine, float bias);
+float set_distort_wet_mix (effects_engine* engine, float wet);
+float set_distort_bypass(effects_engine* engine, float bypass);
 void process_distortion(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size);
 float process_distort_stage(distortion_stage* d_stage, float sample);
 void distortion_stage_free(distortion_stage* d_stage);
@@ -83,7 +86,7 @@ float wavefolder_2(float sample);
 float atanhf_clipping(float gain, float signal);
 float cubic_soft_clipping(float gain, float signal);
 float simple_asym(float gain, float signal);
-float abs_fuzz(float gain, float signal);
+// float abs_fuzz(float gain, float signal);
 
 //Wave shaping functions, processed over the entire buffer
 void tanh_distortion_buffer(float* up_buf, int buf_size, int up_factor);

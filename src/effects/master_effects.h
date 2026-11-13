@@ -18,5 +18,5 @@ typedef struct {
 } master_effects_engine;
 
 void master_effects_init(master_effects_engine* master_engine, int buffer_size);
-void set_master_volume (effects_engine* engine, float volume);
+float set_master_volume (effects_engine* engine, float volume);
 void process_master_volume(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size);

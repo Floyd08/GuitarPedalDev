@@ -37,9 +37,9 @@ typedef struct {
 void delay_engine_init(delay_engine* dl_engine, int sample_rate, int buffer_size);
 void process_delay(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size);
 
-void set_delay_time(effects_engine* engine, float time);
-void set_wet_mix(effects_engine* engine, float wet_mix);
-void set_feedback_gain(effects_engine* engine, float gain);
+float set_delay_time(effects_engine* engine, float time);
+float set_delay_wet_mix(effects_engine* engine, float wet_mix);
+float set_delay_fdbk_gain(effects_engine* engine, float gain);
 
 int ms_to_samples(int time_ms, int sample_rate);
 

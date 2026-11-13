@@ -345,6 +345,8 @@ void set_lfo_rate(low_freq_oscillator* lfo, float rate_Hz, int sample_rate) {
 
 
 // Helper functions
+// linear_to_log is not a very good name for this. what it actually does it:
+// convert one range of values to another range of values using a linear curve.
 float linear_to_log(float linear_val, float min, float max) {
     
 	return min * powf(max / min, linear_val);
@@ -355,6 +357,22 @@ float convert_to_range(float value, float min, float max) {
 	float new_range;
 	new_range = value * (max - min) + min;
 	return new_range;
+}
+float convert_to_rotary(float control_sig, int num_positions) {
+
+	float new_sig = roundf(control_sig * (num_positions - 1));
+
+	return new_sig + 1;
+}
+
+float linear_gain_to_decibels(float linear) {
+
+	if(linear <= 0) {
+		linear = minus_60dB;
+	}
+
+	float decibels = 20.0f * log10f(linear);
+	return decibels;
 }
 
 float linear_interpolate(float fractional_index, float sample1, float sample2) {

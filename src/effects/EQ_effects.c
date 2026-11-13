@@ -7,12 +7,12 @@
 #include "EQ_effects.h"
 
 const ControlDef EQ_controls[EQ_NUM_CONTROLS] = {
-	[EQ_CTRL_B_GAIN] = { .name = "eq_b_gain", .label = "Bass", .type = CTRL_KNOB, .row = 1, .default_value = 0.5, .update_func = EQ_update_lsf_gain },					
-	[EQ_CTRL_M_GAIN] = { .name = "eq_m_gain", .label = "Mid", .type = CTRL_KNOB, .row = 1, .default_value = 0.5, .update_func = EQ_update_mpf_gain },					
-	[EQ_CTRL_T_GAIN] = { .name = "eq_t_gain", .label = "Treble", .type = CTRL_KNOB, .row = 1, .default_value = 0.5, .update_func = EQ_update_hsf_gain },					
-	[EQ_CTRL_B_FREQ] = { .name = "eq_b_freq", .label = "Bass Sweep", .type = CTRL_KNOB, .row = 2, .default_value = 0.5, .update_func = EQ_update_lsf_centre },						
-	[EQ_CTRL_M_FREQ] = { .name = "eq_m_freq", .label = "Mid Sweep", .type = CTRL_KNOB, .row = 2, .default_value = 0.5, .update_func = EQ_update_mpf_centre },						
-	[EQ_CTRL_T_FREQ] = { .name = "eq_t_freq", .label = "Treble Sweep", .type = CTRL_KNOB, .row = 2, .default_value = 0.5, .update_func = EQ_update_hsf_centre },						
+	[EQ_CTRL_B_GAIN] = { .name = "eq_b_gain", .label = "Bass", .type = CTRL_KNOB, .row = EQ_ROW_NUM1, .default_value = 0.5, .update_func = EQ_update_lsf_gain, .units = "dB" },					
+	[EQ_CTRL_M_GAIN] = { .name = "eq_m_gain", .label = "Mid", .type = CTRL_KNOB, .row = EQ_ROW_NUM1, .default_value = 0.5, .update_func = EQ_update_mpf_gain, .units = "dB"  },					
+	[EQ_CTRL_T_GAIN] = { .name = "eq_t_gain", .label = "Treble", .type = CTRL_KNOB, .row = EQ_ROW_NUM1, .default_value = 0.5, .update_func = EQ_update_hsf_gain, .units = "dB"  },					
+	[EQ_CTRL_B_FREQ] = { .name = "eq_b_freq", .label = "Bass Sweep", .type = CTRL_KNOB, .row = EQ_ROW_NUM2, .default_value = 0.5, .update_func = EQ_update_lsf_centre, .units = "Hz" },						
+	[EQ_CTRL_M_FREQ] = { .name = "eq_m_freq", .label = "Mid Sweep", .type = CTRL_KNOB, .row = EQ_ROW_NUM2, .default_value = 0.5, .update_func = EQ_update_mpf_centre, .units = "Hz" },						
+	[EQ_CTRL_T_FREQ] = { .name = "eq_t_freq", .label = "Treble Sweep", .type = CTRL_KNOB, .row = EQ_ROW_NUM2, .default_value = 0.5, .update_func = EQ_update_hsf_centre, .units = "Hz" }					
 };
 
 void EQ_init(EQ_engine* eq, int sample_rate) {
@@ -21,6 +21,7 @@ void EQ_init(EQ_engine* eq, int sample_rate) {
 	effects_engine_init(&base, "equalization");
 	base.controls = EQ_controls;
 	base.num_controls = EQ_NUM_CONTROLS;
+	base.colour = "#DAA520";
 
 	eq->base = base;
 	eq->sample_rate = sample_rate;
@@ -60,63 +61,81 @@ void process_EQ(effects_engine* engine, float *in_buf, float *out_buf, int buffe
 	//printf("EQ processed\n");
 }
 
+
 // These Update functions expect a linear range, between 0 - 1, coming in from the UI
-void EQ_update_lsf_gain(effects_engine* engine, float new_gain) {
+float EQ_update_lsf_gain(effects_engine* engine, float bass) {
+	
 	EQ_engine* eq = (EQ_engine*)engine;
-	new_gain = EQ_convert_dB(new_gain);
+	
+	float new_gain = convert_to_range(bass, MIN_GAIN_EQ, MAX_GAIN_EQ);
+	
 	bq_update(eq->lsf, LOWSHELF, eq->lsf_centre, BUTTERWORTH_Q, new_gain, eq->sample_rate);
 	eq->lsf_gain = new_gain;
+
+	return new_gain;
 }
 
-void EQ_update_hsf_gain(effects_engine* engine, float new_gain) {
+float EQ_update_hsf_gain(effects_engine* engine, float treble) {
+	
 	EQ_engine* eq = (EQ_engine*)engine;
-	new_gain = EQ_convert_dB(new_gain);
+	
+	float new_gain = convert_to_range(treble, MIN_GAIN_EQ, MAX_GAIN_EQ);
+
 	bq_update(eq->hsf, HIGHSHELF, eq->hsf_centre, BUTTERWORTH_Q, new_gain, eq->sample_rate);
 	eq->hsf_gain = new_gain;
+
+	return new_gain;
 }
 
-void EQ_update_mpf_gain(effects_engine* engine, float new_gain) {
+float EQ_update_mpf_gain(effects_engine* engine, float mid) {
+	
 	EQ_engine* eq = (EQ_engine*)engine;
-	new_gain = EQ_convert_dB(new_gain);
+	
+	float new_gain = convert_to_range(mid, MIN_GAIN_EQ, MAX_GAIN_EQ);
+	
 	bq_update(eq->mpf, PEAK, eq->mpf_centre, MID_Q, new_gain, eq->sample_rate);
 	eq->mpf_gain = new_gain;
+
+	return new_gain;
 }
 
 // These Update functions expect a linear range, between 0 - 1, coming in from the UI
-void EQ_update_lsf_centre(effects_engine* engine, float new_centre_freq) {
+float EQ_update_lsf_centre(effects_engine* engine, float bass_centre) {
+	
 	EQ_engine* eq = (EQ_engine*)engine;
-	new_centre_freq = EQ_convert_Hz(new_centre_freq, DFLT_LS_MIN, DFLT_LS_MAX);
+	
+	float new_centre_freq = convert_to_range(bass_centre, DFLT_LS_MIN, DFLT_LS_MAX);
+	
 	bq_update(eq->lsf, LOWSHELF, new_centre_freq, BUTTERWORTH_Q, eq->lsf_gain, eq->sample_rate);
 	eq->lsf_centre = new_centre_freq;
+
+	return new_centre_freq;
 }
 
-void EQ_update_mpf_centre(effects_engine* engine, float new_centre_freq) {
+float EQ_update_mpf_centre(effects_engine* engine, float mid_centre) {
+	
 	EQ_engine* eq = (EQ_engine*)engine;
-	new_centre_freq = EQ_convert_Hz(new_centre_freq, DFLT_MP_MIN, DFLT_MP_MAX);
+
+	float new_centre_freq = convert_to_range(mid_centre, DFLT_MP_MIN, DFLT_MP_MAX);
+	
 	bq_update(eq->mpf, PEAK, new_centre_freq, MID_Q, eq->mpf_gain, eq->sample_rate);
 	eq->mpf_centre = new_centre_freq;
+
+	return new_centre_freq;
 }
 
-void EQ_update_hsf_centre(effects_engine* engine, float new_centre_freq) {
+float EQ_update_hsf_centre(effects_engine* engine, float treble_centre) {
+	
 	EQ_engine* eq = (EQ_engine*)engine;
-	new_centre_freq = EQ_convert_Hz(new_centre_freq, DFLT_HS_MIN, DFLT_HS_MAX);
+	
+	float new_centre_freq = convert_to_range(treble_centre, DFLT_HS_MIN, DFLT_HS_MAX);
+	
 	bq_update(eq->hsf, HIGHSHELF, new_centre_freq, BUTTERWORTH_Q, eq->hsf_gain, eq->sample_rate);
 	eq->hsf_centre = new_centre_freq;
+
+	return new_centre_freq;
 }
 
-
-float EQ_convert_Hz(float value, float new_min, float new_max) {
-
-	float new_value = value * (new_max - new_min) + new_min;
-	return new_value;
-}
-
-float EQ_convert_dB(float value) {
-
-	float dB_range;
-	dB_range = value * (MAX_GAIN_EQ - MIN_GAIN_EQ) + MIN_GAIN_EQ;
-	return dB_range;
-}
 
 void EQ_free(EQ_engine* eq) {
 

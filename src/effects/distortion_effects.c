@@ -11,9 +11,10 @@
 //The controls this module offers to the UI. ui_listener registers this table, and the UI builds itself from it
 //Rows are relative to this module (0 is its first row). Names must be unique across ALL modules
 const ControlDef distortion_controls[DIST_NUM_CONTROLS] = {
-	[DIST_CTRL_GAIN] = { .name = "gain", .label = "Gain", .type = CTRL_KNOB, .row = 0, .default_value = 0.10f, .update_func = set_distort_gain },
-	[DIST_CTRL_BIAS] = { .name = "bias", .label = "Bias", .type = CTRL_KNOB, .row = 0, .default_value = 0.625f, .update_func = set_distort_bias },
-	[DIST_CTRL_DSTR_WET] = { .name = "dstr_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = 0, .default_value = 0.5f, .update_func = set_distort_wet_mix },
+	[DIST_CTRL_GAIN] = { .name = "gain", .label = "Gain", .type = CTRL_KNOB, .row = DISTORTION_ROW_NUM, .default_value = 0.10f, .update_func = set_distort_gain, .units = "dB" },
+	[DIST_CTRL_BIAS] = { .name = "bias", .label = "Bias", .type = CTRL_KNOB, .row = DISTORTION_ROW_NUM, .default_value = 0.625f, .update_func = set_distort_bias , .units = "" },
+	[DIST_CTRL_WET] = { .name = "dstr_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = DISTORTION_ROW_NUM, .default_value = 0.5f, .update_func = set_distort_wet_mix, .units = "" },
+	[DIST_CTRL_BYPS] = { .name = "dstr_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = DISTORTION_ROW_NUM, .default_value = OFF, .update_func = set_distort_bypass, .units = "" }
 };
 
 //initialization. Should handle all instantiation for the distortion engine, so everything is ready for runtime
@@ -23,6 +24,7 @@ void distortion_init(distortion_engine* d_engine, distortion_stage** d_stages, i
 	effects_engine_init(&base, "distortion");
 	base.controls = distortion_controls;
 	base.num_controls = DIST_NUM_CONTROLS;
+	base.colour = "#800000";
 
 	d_engine->base = base;
 	d_engine->image_filter = alias_init(up_factor, sample_rate);
@@ -32,6 +34,7 @@ void distortion_init(distortion_engine* d_engine, distortion_stage** d_stages, i
 	d_engine->up_factor = up_factor;
 	d_engine->buffer_size = buffer_size;
 	d_engine->oversampling_buffer = calloc( buffer_size * up_factor, sizeof(float) );
+	d_engine->bypass = ON;
 }
 
 void distortion_stage_init(distortion_stage* d_stage, biquad** pre_filters, int num_pre_filters, float rectification, float bias, float gain, float dstr_wet, distortion_effect_bysample d_effect, biquad** post_filters, int num_post_filters) {
@@ -48,7 +51,7 @@ void distortion_stage_init(distortion_stage* d_stage, biquad** pre_filters, int 
 }
 
 //Parameter getting and setting
-void set_distort_gain (effects_engine* engine, float gain) {
+float set_distort_gain (effects_engine* engine, float gain) {
 
 	distortion_engine* d_engine = (distortion_engine*)engine;
 
@@ -56,9 +59,11 @@ void set_distort_gain (effects_engine* engine, float gain) {
 	float converted_gain = linear_to_log(gain, minus_3dB, plus_30dB);
 	int stage_index = d_engine->control_stages[0];
 	d_engine->d_stages[stage_index]->gain = converted_gain;
+
+	return linear_gain_to_decibels(converted_gain);
 }
 
-void set_distort_bias (effects_engine* engine, float bias) {
+float set_distort_bias (effects_engine* engine, float bias) {
 
 	distortion_engine* d_engine = (distortion_engine*)engine;
 
@@ -66,19 +71,37 @@ void set_distort_bias (effects_engine* engine, float bias) {
 	float new_bias = (bias * 2) - 1;				
 	int stage_index = d_engine->control_stages[1];
 	d_engine->d_stages[stage_index]->bias = new_bias;
+
+	return new_bias;
 }
 
-void set_distort_wet_mix (effects_engine* engine, float wet) {
+float set_distort_wet_mix (effects_engine* engine, float wet) {
 
 	distortion_engine* d_engine = (distortion_engine*)engine;
 	
 	int stage_index = d_engine->control_stages[2];
 	d_engine->d_stages[stage_index]->dstr_wet = wet;
+
+	return wet;
+}
+
+float set_distort_bypass(effects_engine* engine, float bypass) {
+
+	distortion_engine* d_engine = (distortion_engine*)engine;
+
+	int new_bypass = (int)bypass;
+	d_engine->bypass = new_bypass;
+
+	return new_bypass;
 }
 
 void process_distortion(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size) {
 
 	distortion_engine* d_engine = (distortion_engine*)engine;
+
+	if (d_engine->bypass == 0) {
+		return;
+	}
 
 	float sample;
 

@@ -6,6 +6,7 @@ void effects_engine_init(effects_engine* base, char* name) {
 	base->name = name;
 	base->controls = NULL;
 	base->num_controls = 0;
+	base->colour = NULL;
 }
 
 // control_info get_control_info(effects_engine* engine) {

@@ -43,6 +43,7 @@
 enum {
 	S5_RVRB_CTRL_VERB,
 	S5_RVRB_CTRL_DECAY,
+	S5_RVRB_CTRL_BYPASS,
 	S5_RVRB_NUM_CONTROLS
 };
 extern const ControlDef series_ap_reverb_controls[S5_RVRB_NUM_CONTROLS];
@@ -51,6 +52,7 @@ enum {
 	FREEVERB_CTRL_VERB,
 	FREEVERB_CTRL_DECAY,
 	FREEVERB_CTRL_TONE,
+	FREEVERB_CTRL_BYPASS,
 	FREEVERB_NUM_CONTROLS
 };
 extern const ControlDef freeverb_reverb_controls[FREEVERB_NUM_CONTROLS];
@@ -63,6 +65,7 @@ typedef struct {
 	float decay_gain;
 	float wet_gain;
 	float dry_gain;
+	int bypass;
 
 } series_ap_reverb_engine;
 
@@ -76,6 +79,7 @@ typedef struct {
 	float wet_gain;										// Used to set the dry/wet mix of the effect
 	float dry_gain;
 	float sample_rate;									// cached, to recalculate the low pass when the cutoff changes
+	int bypass;
 
 } freeverb_reverb_engine;
 
@@ -83,15 +87,17 @@ typedef struct {
 void series_ap_reverb_engine_init(series_ap_reverb_engine* r_engine, int sample_rate);
 void process_series_ap_reverb(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size);
 
-void set_sap_rvrb_decay(effects_engine* engine, float decay);
-void set_sap_rvrb_wet_mix(effects_engine* engine, float wet_mix);
+float set_sap_rvrb_decay(effects_engine* engine, float decay);
+float set_sap_rvrb_wet_mix(effects_engine* engine, float wet_mix);
+float set_sap_rvrb_bypass(effects_engine* engine, float bypass);
 
 // a Freeverb style reverb design
 void freeverb_reverb_engine_init(freeverb_reverb_engine* r_engine, int sample_rate);
 void process_freeverb(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size);
 
-void set_freeverb_wet_mix(effects_engine* engine, float wet_mix);
-void set_freeverb_decay(effects_engine* engine, float decay);
-void set_freeverb_lpf_freq(effects_engine* engine, float cutoff);
+float set_freeverb_wet_mix(effects_engine* engine, float wet_mix);
+float set_freeverb_decay(effects_engine* engine, float decay);
+float set_freeverb_lpf_freq(effects_engine* engine, float cutoff);
+float set_freeverb_bypass(effects_engine* engine, float bypass);
 
 #endif

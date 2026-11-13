@@ -112,11 +112,11 @@ void process_filter_cab(filter_cab* cab, float *in_buf, float *out_buf, int buff
 void amp_model_init(amp_model* a_mod, int sample_rate, int buffer_size);
 void process_amp_model(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size);
 
-void set_preamp_gain(effects_engine* engine, float gain);
-void set_preamp_drive(effects_engine* engine, float gain);
-void set_preamp_bass(effects_engine* engine, float bass);
-void set_preamp_mid(effects_engine* engine, float mid);
-void set_preamp_treble(effects_engine* engine, float treble);
-void set_preamp_mid_centre(effects_engine* engine, float centre);
+float set_preamp_gain(effects_engine* engine, float gain);
+float set_preamp_drive(effects_engine* engine, float gain);
+float set_preamp_bass(effects_engine* engine, float bass);
+float set_preamp_mid(effects_engine* engine, float mid);
+float set_preamp_treble(effects_engine* engine, float treble);
+float set_preamp_mid_centre(effects_engine* engine, float centre);
 
 #endif
