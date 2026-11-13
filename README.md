@@ -41,7 +41,7 @@ Master_effects handles Master control of the application, and for now handles on
 The signal chain is defined at runtime in main, and callback routes audio through the each module by looping though the fx_chain
 
 
-The application has a very simple UI written in Python. This UI broadcasts control signals with UDP, and the C application has a control layer(ui_listener.c) that parses these control signals and updates some shared memory. This has since been expanded to read control definitions from each effects module, and generate the desired controls on a virtual control panel.
+The application has a very simple UI written in Python. This UI broadcasts control signals with UDP, and the C application has a control layer(ui_listener.c) that parses these control signals and updates some shared memory. This has since been expanded to read control definitions from each effects module, and generate the desired controls on a virtual control panel. This has since been upgraded to display live parameter values, and to more intelligently organize control sets into sub panels(and it's colour coded!) 
 
 On the subject of threading:
 The main function of pedal_processor starts the Audio stream, which then runs on a separate thread(callback) while Main blocks until the stream is closed. 
