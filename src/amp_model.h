@@ -19,19 +19,27 @@
 #define		DFLT_GAIN_LINEAR		0.5
 #define		OVERSAMPLING_FACTOR		8
 
+#define		MIN_PRAMP_LVL			minus_15dB
+#define		MAX_PRAMP_LVL			plus_3dB
+#define		DFLT_PRAMP_LVL			_0dB
+#define		DFLT_PRAMP_LVL_SET		0.807
+
 #define		POWER_AMP_ATTACK_MS		20
 #define		POWER_AMP_RELEASE_MS	200
-#define		RAIL_DEPTH				0.3
+#define		RAIL_DEPTH				0.6
 #define		RAIL_KNEE				0.8				// 0 < rail_knee < 1
 #define		RAIL_FLOOR				0.4
+#define		DFLT_POWER				0.0f
+#define		POWER_CATCHUP			0.005			// 5ms
 
 enum {
-	AMP_CTRL_GAIN,
+	// AMP_CTRL_GAIN,
 	AMP_CTRL_DRVE,
 	AMP_CTRL_BASS,
 	AMP_CTRL_MID,
 	AMP_CTRL_MID_SWP,
 	AMP_CTRL_TRBL,
+	AMP_CTRL_LVL,
 	AMP_NUM_CONTROLS
 };
 extern const ControlDef amp_model_controls[AMP_NUM_CONTROLS];
@@ -54,16 +62,19 @@ typedef struct {
 
 typedef struct {
 
-	float gain;						// input gain, runs into stage 1						-3 to 15dB
-	float drive;					// gain applied after tone stack, runs into stage 2		-3 to 15dB
+	float gain;						// input gain, runs into stage 1										-3 to 15dB
+	float drive;					// gain applied after tone stack, runs into stage 2						-3 to 15dB
+	float level;					// output from the pre-amp, running into the next stage(power amp)		-60dB to 3dB
 	onepole* input_hpf; 			// input filter, highpass, 60Hz, butterworth, unity
 	onepole* interstage_hpf;		// interstage hpf, 150Hz, butterworth, unity
 	onepole* interstage_lpf;		// interstage lpf, 7000Hz, butterworth, unity
 	tone_stack tone;				// tone stack pointer
 	float bias;						// pushes the signal positive or negative to acheive asymmetric clipping		0.15
 	float bias_precomp;				// stage 2 bias precomputed
-	biquad* image_filter;			// A lowpass filter, calibrated for antt-imaging
-	biquad* alias_filter;			// A lowpass filter, calibrated for anti-aliasing -- filters have a state to themselves, so we can't use one filter for both steps
+	// biquad* image_filter;		// A lowpass filter, calibrated for antt-imaging
+	// biquad* alias_filter;		// A lowpass filter, calibrated for anti-aliasing -- filters have a state to themselves, so we can't use one filter for both steps
+	ai_aa_filter image_filter;		// A set of 2nd order lowpass filters, calibrated for anti-imaging
+	ai_aa_filter alias_filter;		// A lowpass filter, calibrated for anti-aliasing -- filters have a state to themselves, so we can't use one filter for both steps
 	float* oversampling_buffer;		// A pointer to a larger float buffer. It's size is buffer_size * up_factor
 
 } pre_amp;
@@ -71,11 +82,13 @@ typedef struct {
 typedef struct {
 
 	// Sag simulation
-	envelope_follower e_fol;		// envelope state represents the the op-amps suuply rail
+	envelope_follower e_fol;		// envelope state represents the the op-amps suply rail
 									// attack defines how quickly the rail drains, and release defines  the rail recharge. 
 	float rail_depth;				// max fractional rail ddrop at sustained load
 	float knee;						// knee as a fraction of the ceiling
 	float rail_floor;				// a floor on the fail state, to keep it from collapsing to 0
+	float power;					// short running average of output power (output squared)
+	float power_coeff;				// smoothing coefficient for the power average, ~5 ms
 
 } power_amp;
 
@@ -83,6 +96,7 @@ typedef struct {
 
 	biquad* input_hpf;			// input highpass, 80Hz
 	biquad* bass_res;			// resonance peaks
+	biquad* breakup_notch;			// resonance peaks
 	biquad* mid_res;
 	biquad* treble_res;
 	biquad* output_lp1;			// cascaded lowpass filters, for a steeper roll off
@@ -114,6 +128,7 @@ void process_amp_model(effects_engine* engine, float *in_buf, float *out_buf, in
 
 float set_preamp_gain(effects_engine* engine, float gain);
 float set_preamp_drive(effects_engine* engine, float gain);
+float set_preamp_level(effects_engine* engine, float level);
 float set_preamp_bass(effects_engine* engine, float bass);
 float set_preamp_mid(effects_engine* engine, float mid);
 float set_preamp_treble(effects_engine* engine, float treble);

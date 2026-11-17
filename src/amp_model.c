@@ -4,12 +4,13 @@
 #include "amp_model.h"
 
 const ControlDef amp_model_controls[AMP_NUM_CONTROLS] = {
-	[AMP_CTRL_GAIN] = { .name = "amp_gain", .label = "Gain", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = 0.17f, .update_func = set_preamp_gain, .units = "dB" },
+	// [AMP_CTRL_GAIN] = { .name = "amp_gain", .label = "Gain", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = 0.17f, .update_func = set_preamp_gain, .units = "dB" },
 	[AMP_CTRL_BASS] = { .name = "amp_bass", .label = "Bass", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = DFLT_GAIN_LINEAR, .update_func = set_preamp_bass, .units = "dB"  },
 	[AMP_CTRL_MID] = { .name = "amp_mid", .label = "Mid", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = DFLT_GAIN_LINEAR, .update_func = set_preamp_mid, .units = "dB"  },
 	[AMP_CTRL_TRBL] = { .name = "amp_treble", .label = "Treble", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = DFLT_GAIN_LINEAR, .update_func = set_preamp_treble, .units = "dB"  },
 	[AMP_CTRL_MID_SWP] = { .name = "amp_mid_swp", .label = "Mid Sweep", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = 0.2, .update_func = set_preamp_mid_centre, .units = "Hz" },
-	[AMP_CTRL_DRVE] = { .name = "amp_drive", .label = "Drive", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = 0.17f, .update_func = set_preamp_drive, .units = "dB" }
+	[AMP_CTRL_DRVE] = { .name = "amp_drive", .label = "Drive", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = 0.17f, .update_func = set_preamp_drive, .units = "dB" },
+	[AMP_CTRL_LVL] = { .name = "amp_level", .label = "Level", .type = CTRL_KNOB, .row = AMP_ROW_NUM, .default_value = DFLT_PRAMP_LVL_SET, .update_func = set_preamp_level, .units = "dB" }
 };
 
 void tone_stack_init(tone_stack* tone, int sample_rate) {
@@ -42,6 +43,7 @@ void pre_amp_init(pre_amp* pre_amp, int sample_rate, int buffer_size) {
 	tone_stack_init(&pre_amp->tone, oversample_rate);
 	pre_amp->gain = _0dB;
 	pre_amp->drive = _0dB;
+	pre_amp->level = _0dB;
 	pre_amp->input_hpf = op_new(OP_HIGHPASS, 60, UNITY_GAIN, oversample_rate);
 	pre_amp->interstage_hpf = op_new(OP_HIGHPASS, 150, UNITY_GAIN, oversample_rate);
 	pre_amp->interstage_lpf = op_new(OP_LOWPASS, 7000, UNITY_GAIN, oversample_rate);
@@ -49,8 +51,10 @@ void pre_amp_init(pre_amp* pre_amp, int sample_rate, int buffer_size) {
 	pre_amp->bias_precomp = tanhf(pre_amp->bias);
 	
 	pre_amp->oversampling_buffer = calloc( buffer_size * OVERSAMPLING_FACTOR, sizeof(float) );
-	pre_amp->image_filter = alias_init(OVERSAMPLING_FACTOR, oversample_rate);
-	pre_amp->alias_filter = alias_init(OVERSAMPLING_FACTOR, oversample_rate);
+	ai_aa_filter_init(&pre_amp->image_filter, OVERSAMPLING_FACTOR, sample_rate);
+	ai_aa_filter_init(&pre_amp->alias_filter, OVERSAMPLING_FACTOR, sample_rate);
+	// pre_amp->image_filter = alias_init(OVERSAMPLING_FACTOR, oversample_rate);
+	// pre_amp->alias_filter = alias_init(OVERSAMPLING_FACTOR, oversample_rate);
 }
 
 void process_pre_amp(pre_amp* pre_amp, float *in_buf, float *out_buf, int buffer_size) {
@@ -63,7 +67,8 @@ void process_pre_amp(pre_amp* pre_amp, float *in_buf, float *out_buf, int buffer
 	for (int i = 0; i < oversampling_buffer_length; i++) {
 
 		sample = pre_amp->oversampling_buffer[i];
-		sample = bq_process(pre_amp->image_filter, sample);
+		// sample = bq_process(pre_amp->image_filter, sample);
+		sample = process_aiaa_filter(&pre_amp->image_filter, sample);
 		sample = sample * OVERSAMPLING_FACTOR;
 
 		// input filter
@@ -80,8 +85,10 @@ void process_pre_amp(pre_amp* pre_amp, float *in_buf, float *out_buf, int buffer
 		sample = sample * pre_amp->drive;
 		sample = sample + pre_amp->bias;
 		sample = tanh_distortion(sample) - pre_amp->bias_precomp;
+		sample = sample * pre_amp->level;
 
-		sample = bq_process(pre_amp->alias_filter, sample);
+		//sample = bq_process(pre_amp->alias_filter, sample);
+		sample = process_aiaa_filter(&pre_amp->alias_filter, sample);
 		pre_amp->oversampling_buffer[i] = sample;
 	}
 
@@ -95,6 +102,8 @@ void power_amp_init(power_amp* p_amp, int sample_rate) {
 	p_amp->rail_depth = RAIL_DEPTH;
 	p_amp->knee = RAIL_KNEE;
 	p_amp->rail_floor = RAIL_FLOOR;
+	p_amp->power = DFLT_POWER;
+	p_amp->power_coeff = 1.0f - expf(-1.0f / (POWER_CATCHUP * sample_rate));
 
 }
 
@@ -127,7 +136,9 @@ void process_power_amp(power_amp* p_amp, float *in_buf, float *out_buf, int buff
 		out_buf[i] = output;
 
 		// Update the state of the load envelope
-		process_envelope_follower(&p_amp->e_fol, output);
+		//process_envelope_follower(&p_amp->e_fol, output);
+		p_amp->power = p_amp->power + p_amp->power_coeff * (output * output - p_amp->power);
+		process_envelope_follower(&p_amp->e_fol, p_amp->power);
 		
 		if (p_amp->e_fol.state < 1e-6f) {
 			p_amp->e_fol.state = 0.0f;          /* avoid denormals */
@@ -137,12 +148,19 @@ void process_power_amp(power_amp* p_amp, float *in_buf, float *out_buf, int buff
 
 void filter_cab_init(filter_cab* cab, int sample_rate) {
 
-	cab->input_hpf = bq_new(HIGHPASS, 80, BUTTERWORTH_Q, UNITY_GAIN, sample_rate);
-	cab->bass_res = bq_new(PEAK, 110, 1.2, 3, sample_rate);
-	cab->mid_res = bq_new(PEAK, 500, 0.8, -3, sample_rate);
-	cab->treble_res = bq_new(PEAK, 3000, 1.0, 5, sample_rate);
-	cab->output_lp1 = bq_new(LOWPASS, 5500, BUTTERWORTH_Q, UNITY_GAIN, sample_rate);
-	cab->output_lp2 = bq_new(LOWPASS, 5500, BUTTERWORTH_Q, UNITY_GAIN, sample_rate);
+	// cab->input_hpf = bq_new(HIGHPASS, 80, BUTTERWORTH_Q, UNITY_GAIN, sample_rate);
+	// cab->bass_res = bq_new(PEAK, 110, 1.2, 3, sample_rate);
+	// cab->mid_res = bq_new(PEAK, 500, 0.8, -3, sample_rate);
+	// cab->treble_res = bq_new(PEAK, 3000, 1.0, 5, sample_rate);
+	// cab->output_lp1 = bq_new(LOWPASS, 5500, BUTTERWORTH_Q, UNITY_GAIN, sample_rate);
+	// cab->output_lp2 = bq_new(LOWPASS, 5500, BUTTERWORTH_Q, UNITY_GAIN, sample_rate);
+
+	cab->input_hpf     = bq_new(HIGHPASS, 95,   1.3,    UNITY_GAIN, sample_rate); // resonant: gives the low bump
+	cab->mid_res       = bq_new(PEAK,     500,  0.8,    -3,         sample_rate);
+	cab->treble_res    = bq_new(PEAK,     2800, 1.2,     5,         sample_rate);
+	cab->breakup_notch = bq_new(PEAK,     4200, 4.0,    -4,         sample_rate); // replaces bass_res
+	cab->output_lp1    = bq_new(LOWPASS,  5200, 0.5412, UNITY_GAIN, sample_rate);
+	cab->output_lp2    = bq_new(LOWPASS,  5200, 1.3066, UNITY_GAIN, sample_rate);
 
 }
 
@@ -152,8 +170,9 @@ void process_filter_cab(filter_cab* cab, float *in_buf, float *out_buf, int buff
 	for (int i = 0; i < buffer_size; i++) {
 
 		sample = in_buf[i];
-		sample = bq_process(cab->bass_res, sample);
-		sample = bq_process(cab->bass_res, sample);
+		sample = bq_process(cab->input_hpf, sample);
+		// sample = bq_process(cab->bass_res, sample);
+		sample = bq_process(cab->breakup_notch, sample);
 		sample = bq_process(cab->mid_res, sample);
 		sample = bq_process(cab->treble_res, sample);
 		sample = bq_process(cab->output_lp1, sample);
@@ -219,6 +238,16 @@ float set_preamp_drive(effects_engine* engine, float drive) {
 	return linear_gain_to_decibels(converted_drive);
 }
 
+float set_preamp_level(effects_engine* engine, float level) {
+
+	amp_model* a_mod = (amp_model*)engine;
+
+	float converted_level = linear_to_log(level, MIN_PRAMP_LVL, MAX_PRAMP_LVL);
+	a_mod->pr_amp.level = converted_level;
+
+	return linear_gain_to_decibels(converted_level);
+}
+
 float set_preamp_bass(effects_engine* engine, float bass) {
 
 	amp_model* a_mod = (amp_model*)engine;
@@ -250,7 +279,7 @@ float set_preamp_treble(effects_engine* engine, float treble) {
 	float converted_treble = convert_to_range(treble, MIN_TS_GAIN, MAX_TS_GAIN);
 	
 	a_mod->pr_amp.tone.treble_gain = converted_treble;
-	op_update(a_mod->pr_amp.tone.treble_hsf, OP_HIGHSHELF, DFLT_BASS_FREQ, converted_treble, a_mod->pr_amp.tone.sample_rate);
+	op_update(a_mod->pr_amp.tone.treble_hsf, OP_HIGHSHELF, DFLT_TREBLE_FREQ, converted_treble, a_mod->pr_amp.tone.sample_rate);
 
 	return converted_treble;
 }

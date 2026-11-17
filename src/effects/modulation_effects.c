@@ -13,9 +13,11 @@ const ControlDef flanger_controls[FLNG_NUM_CONTROLS] = {
 	[FLNG_CTRL_RATE] = {.name = "flng_rate", .label = "Rate", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_RATE_SET, .update_func = set_flanger_rate, .units = "Hz" },
 	[FLNG_CTRL_DEPTH] = {.name = "flng_depth", .label = "Depth", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_DEPTH_SET, .update_func = set_flanger_depth, .units = "ms" },
 	[FLNG_CTRL_FDBK] = {.name = "flng_feedback", .label = "Feedback", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_FDBK_SET, .update_func = set_flanger_feedback, .units = "" },
-	[FLNG_CTRL_FRWD] = {.name = "flng_forward", .label = "Feedforward", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_FRWD_SET, .update_func = set_flanger_feedforward, .units = "" },
-	[FLNG_CTRL_BLND] = {.name = "flng_blend", .label = "Blend", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_DRY_SET, .update_func = set_flanger_dry, .units = "" },
+	[FLNG_CTRL_MIX] = {.name = "flng_mix", .label = "Mix", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_MIX_SET, .update_func = set_flanger_mix, .units = "" },
+	// [FLNG_CTRL_FRWD] = {.name = "flng_forward", .label = "Feedforward", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_FRWD_SET, .update_func = set_flanger_feedforward, .units = "" },
+	// [FLNG_CTRL_BLND] = {.name = "flng_blend", .label = "Blend", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_DRY_SET, .update_func = set_flanger_dry, .units = "" },
 	[FLNG_CTRL_HPF] = {.name = "flng_tone", .label = "Tone", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_FLNG_HPF_SET, .update_func = set_flanger_hpf, .units = "Hz" },
+	[FLNG_CTRL_POL] = { .name = "flng_pol", .label = "Polarity", .type = CTRL_SWITCH, .row = MODULATION_ROW_NUM, .default_value = DFLT_FLNG_POL_SET, .update_func = set_flanger_polarity, .units = "" },
 	[FLNG_CTRL_BYPASS] = { .name = "flng_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = MODULATION_ROW_NUM, .default_value = OFF, .update_func = set_flanger_bypass, .units = "" }
 };
 
@@ -62,7 +64,7 @@ void flanger_modulation_init(flanger_modulation_engine* m_engine, int sample_rat
 	base.colour = "#9400D3";
 	m_engine->base = base;
 
-	float samples_per_ms = sample_rate / 1000;
+	float samples_per_ms = sample_rate / 1000.0f;
 
 	low_freq_oscillator_init(&m_engine->lfo, DFLT_FLNG_RATE, sample_rate);
 	r_buffer_init(&m_engine->chorus_line, FLNG_BUFF_SIZE);
@@ -70,16 +72,18 @@ void flanger_modulation_init(flanger_modulation_engine* m_engine, int sample_rat
 
 	m_engine->base_delay_ms = FLNG_BASE_DLY;
 	m_engine->base_delay_samples = FLNG_BASE_DLY * samples_per_ms;
-
-	//set_flanger_rate(&m_engine->base, DFLT_FLNG_RATE_SET);
-	set_flanger_depth(&m_engine->base, DFLT_FLNG_DEPTH_SET);
-	set_flanger_feedback(&m_engine->base, DFLT_FLNG_FDBK_SET);
-	set_flanger_feedforward(&m_engine->base, DFLT_FLNG_FRWD_SET);
-	set_flanger_dry(&m_engine->base, DFLT_FLNG_DRY_SET);
-
 	m_engine->sample_rate = sample_rate;
 	m_engine->samples_per_ms = samples_per_ms;
 	m_engine->bypass = OFF;
+
+	set_flanger_rate(&m_engine->base, DFLT_FLNG_RATE_SET);
+	set_flanger_depth(&m_engine->base, DFLT_FLNG_DEPTH_SET);
+	set_flanger_feedback(&m_engine->base, DFLT_FLNG_FDBK_SET);
+	set_flanger_polarity(&m_engine->base, DFLT_FLNG_POL_SET);
+	set_flanger_mix(&m_engine->base, DFLT_FLNG_MIX_SET);
+	set_flanger_feedforward(&m_engine->base, DFLT_FLNG_FRWD_SET);
+	set_flanger_dry(&m_engine->base, DFLT_FLNG_DRY_SET);
+
 }
 
 void phaser_modulation_init(phaser_modulation_engine* m_engine, int sample_rate) {
@@ -153,7 +157,7 @@ void process_flanger(effects_engine* engine, float* in_buf, float* out_buf, int 
 		return;
 	}
 
-	float sample, mod_delay, mod_delay_ms, mod_sample1, mod_sample2, mod_sample_interp, output;
+	float sample, mod_delay, mod_delay_ms, mod_sample1, mod_sample2, mod_sample_interp, output, feedback;
 	int mod_delay_samples;
 	for (int i = 0; i < buffer_size; i++) {
 
@@ -172,9 +176,10 @@ void process_flanger(effects_engine* engine, float* in_buf, float* out_buf, int 
 		mod_delay_samples++;
 		mod_sample2 = r_buffer_read_index(&m_engine->chorus_line, m_engine->chorus_line.write_head - mod_delay_samples);
 		mod_sample_interp = linear_interpolate(mod_delay, mod_sample1, mod_sample2);
+		feedback = bq_process(m_engine->hpf, mod_sample_interp);
 
 		// write dry signal to the ring buffer - for chorus
-		r_buffer_write(&m_engine->chorus_line, sample + mod_sample_interp * m_engine->feedback_gain);
+		r_buffer_write(&m_engine->chorus_line, sample + feedback * m_engine->feedback_gain);
 
 		// blend the dry signal with the modulated signal. Much of the effect lives in how the Dry and Wet levels combine
 		output = (sample * m_engine->blend) + (mod_sample_interp * m_engine->feedforward_gain);
@@ -263,6 +268,7 @@ float set_chorus_bypass(effects_engine* engine, float bypass) {
 	return new_bypass;
 }
 
+
 // update functions for Flanger
 float set_flanger_rate(effects_engine* engine, float rate) {
 
@@ -282,7 +288,7 @@ float set_flanger_depth(effects_engine* engine, float depth_ms) {
 	float new_depth = convert_to_range(depth_ms, MIN_FLNG_DEPTH, MAX_FLNG_DEPTH);
 
 	m_engine->depth_ms = new_depth;
-	m_engine->base_delay_samples = new_depth * m_engine->samples_per_ms;
+	m_engine->depth_samples = new_depth * m_engine->samples_per_ms;
 
 	return new_depth;
 }
@@ -293,11 +299,35 @@ float set_flanger_feedback(effects_engine* engine, float feedback) {
 
 	float new_feedback = convert_to_range(feedback, MIN_FLNG_FDBK, MAX_FLNG_FDBK);
 
-	m_engine->feedback_gain = new_feedback;
+	m_engine->feedback_gain = new_feedback * m_engine->polarity;
 
 	return new_feedback;
 }
 
+float set_flanger_mix(effects_engine* engine, float mix) {
+
+	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
+
+	m_engine->blend = 1.0f - mix;
+	m_engine->feedforward_gain = mix * m_engine->polarity; 
+
+	return mix;
+}
+
+float set_flanger_polarity(effects_engine* engine, float polarity) {
+
+	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
+
+	float new_polarity = convert_to_range(polarity, -1.0f, 1.0f);
+
+	m_engine->polarity = new_polarity;
+	m_engine->feedforward_gain = m_engine->feedforward_gain * new_polarity;
+
+	return new_polarity;
+}
+
+
+// soon to be replaced
 float set_flanger_feedforward(effects_engine* engine, float feedforward) {
 
 	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
@@ -340,6 +370,7 @@ float set_flanger_bypass(effects_engine* engine, float bypass) {
 
 	return new_bypass;
 }
+
 
 // update functions for Phaser
 float set_phaser_rate(effects_engine* engine, float rate) {

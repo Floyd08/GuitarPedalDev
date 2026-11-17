@@ -4,29 +4,31 @@
 #include "one_pole.h"
 #include "Biquad.h"
 
-#define		TWO_PI				6.28318530718f
-#define		BUTTERWORTH_Q		0.7071
-#define 	UNITY_GAIN			0.0f
-#define 	ALIAS_CUTOFF		20000
+#define		TWO_PI					6.28318530718f
+#define		BUTTERWORTH_Q			0.7071
+#define 	UNITY_GAIN				0.0f
+#define 	ALIAS_CUTOFF			20000
 
+#define		NUM_AIAA_FILTERS		4
+#define		AI_AA_Q_VALUES			{ 0.5098f, 0.6013f, 0.9000f, 2.5629f }
 
 /*----------------------------------------------------------------------------------------------*/
 // dB to linear gain conversions
-#define		minus_60dB			0.001
-#define		minus_30dB			0.0316
-#define		minus_21dB			0.0891
-#define		minus_15dB			0.1778
-#define		minus_12dB			0.2512
-#define		minus_6dB			0.5012
-#define		minus_3dB			0.7079
-#define		_0dB				1.0000
-#define		plus_3dB			1.4125
-#define		plus_6dB			1.9953
-#define		plus_9dB			2.8184
-#define		plus_12dB			3.9811
-#define		plus_15dB			5.6234
-#define		plus_21dB			11.2202
-#define		plus_30dB			31.6228
+#define		minus_60dB				0.001
+#define		minus_30dB				0.0316
+#define		minus_21dB				0.0891
+#define		minus_15dB				0.1778
+#define		minus_12dB				0.2512
+#define		minus_6dB				0.5012
+#define		minus_3dB				0.7079
+#define		_0dB					1.0000
+#define		plus_3dB				1.4125
+#define		plus_6dB				1.9953
+#define		plus_9dB				2.8184
+#define		plus_12dB				3.9811
+#define		plus_15dB				5.6234
+#define		plus_21dB				11.2202
+#define		plus_30dB				31.6228
 
 typedef struct {
 
@@ -37,6 +39,16 @@ typedef struct {
 	float release_alpha;
 	
 } envelope_follower;
+
+// a set of biquad filters, used to filter for imaging and aliasing
+typedef struct {
+
+	int num_filters;
+	biquad* filters[NUM_AIAA_FILTERS];
+
+	int sample_rate;
+
+} ai_aa_filter;
 
 typedef struct {
 
@@ -112,6 +124,10 @@ biquad* alias_init(int upsample_factor, int sample_rate);
 void alias_free(biquad* alias_filter);
 void alias_filter_process(biquad* alias_filter, int buffer_size, float* upsampled_buffer, int upsample_factor);
 void alias_filter_process_gc(biquad* alias_filter, int buffer_size, float* upsampled_buffer, int upsample_factor);
+
+void ai_aa_filter_init(ai_aa_filter* filter, int oversample_rate, int sample_rate);
+float process_aiaa_filter(ai_aa_filter* filter, float sample);
+
 
 void upsample(float* input_buf, int buffer_size, float* upsampled_buf, int upsample_factor);
 void downsample_mono(float* upsampled_buf, int upsample_factor, float* output_buf, int buffer_size);

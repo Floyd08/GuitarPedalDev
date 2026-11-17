@@ -7,11 +7,16 @@ extensions/tube_preamp
 src/AC30
 src/ui/*
 !src/ui/control_panel.py
+!src/ui/ui_listener.c
+!src/ui/ui_listener.h
 src/util/sine_udp.c
 src/util/sine_udp.h
 src/util/sine_udp.exe
-src\util\pa_ringbuffer.c
-src\util\pa_ringbuffer.h
+src/util/pa_ringbuffer.c
+src/util/pa_ringbuffer.h
+src/analysis/oscilloscope-old.py
+src/analysis/scope_tap-old.c
+src/analysis/scope_tap-old.h
 *.o
 pedal_processor.exe 
  

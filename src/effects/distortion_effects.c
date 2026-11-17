@@ -34,7 +34,7 @@ void distortion_init(distortion_engine* d_engine, distortion_stage** d_stages, i
 	d_engine->up_factor = up_factor;
 	d_engine->buffer_size = buffer_size;
 	d_engine->oversampling_buffer = calloc( buffer_size * up_factor, sizeof(float) );
-	d_engine->bypass = ON;
+	d_engine->bypass = OFF;
 }
 
 void distortion_stage_init(distortion_stage* d_stage, biquad** pre_filters, int num_pre_filters, float rectification, float bias, float gain, float dstr_wet, distortion_effect_bysample d_effect, biquad** post_filters, int num_post_filters) {
@@ -248,7 +248,7 @@ float atanhf_clipping(float gain, float signal) {
 	float driven = signal * gain;
     if (driven > 0.999f) driven = 0.999f;
     if (driven < -0.999f) driven = -0.999f;
-	return atanhf(signal * gain);
+	return atanhf(driven);
 }
 
 float min_max_fuzz(float sample) {
@@ -259,7 +259,8 @@ float min_max_fuzz(float sample) {
 
 float wavefolder_1(float sample) {
 
-	sample = sample * M_2_PI;
+	// sample = sample * M_2_PI;
+	sample = sample * M_PI_2;
 	sample  = sinf(sample);
 	return sample;
 }
@@ -268,7 +269,8 @@ float wavefolder_2(float sample) {
 
 	sample = wavefolder_1(sample);
 	sample = asinf(sample);
-	sample = sample * M_2_PI;
+	// sample = sample * M_2_PI;
+	sample = sample * M_PI_2;
 	return sample;
 }
 
@@ -276,6 +278,7 @@ float wavefolder_2(float sample) {
 float cubic_soft_clipping(float gain, float signal) {
 	
 	float driven_signal = signal * gain;
+	// we should be clamping the signal before the expression below. values outside { -1, 1 } blow up.
 
 	return driven_signal - (1.0f / 3.0f) * powf(driven_signal, 3);
 }

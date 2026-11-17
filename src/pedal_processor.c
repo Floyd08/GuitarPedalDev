@@ -8,6 +8,7 @@
 #include "pedal_processor.h"
 #include "control_def.h"
 #include "ui_listener.h"
+#include "scope_tap.h"
 #include "dsp_tools.h"
 #include "master_effects.h"
 #include "distortion_effects.h"
@@ -181,10 +182,10 @@ int main(void) {
     // series_ap_reverb_engine_init(&r_engine, SAMPLE_RATE);
     freeverb_reverb_engine r_engine;
     freeverb_reverb_engine_init(&r_engine, SAMPLE_RATE);
-    chorus_modulation_engine m_engine;
-    chorus_modulation_init(&m_engine, SAMPLE_RATE);
-    // flanger_modulation_engine m_engine;
-    // flanger_modulation_init(&m_engine, SAMPLE_RATE);
+    // chorus_modulation_engine m_engine;
+    // chorus_modulation_init(&m_engine, SAMPLE_RATE);
+    flanger_modulation_engine m_engine;
+    flanger_modulation_init(&m_engine, SAMPLE_RATE);
     // phaser_modulation_engine m_engine;
     // phaser_modulation_init(&m_engine, SAMPLE_RATE);
     // tremolo_amplitude_engine a_engine;
@@ -206,10 +207,10 @@ int main(void) {
     // append_ers[2] = fx_chain_append(&chain, &eq_engine.base, process_EQ);
     // append_ers[3] = fx_chain_append(&chain, &b_engine.base, process_bitcrush);
     // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_chorus);
-    // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_flanger);
+    append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_flanger);
     // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_phaser);
     // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_series_ap_reverb);
-    append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_freeverb);
+    // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_freeverb);
     // append_ers[6] = fx_chain_append(&chain, &dl_engine.base, process_delay);
     // append_ers[6] = fx_chain_append(&chain, &a_engine.base, process_tremolo);
     // append_ers[6] = fx_chain_append(&chain, &a_engine.base, process_harmonic_tremolo);
@@ -240,6 +241,10 @@ int main(void) {
         return 1;
     }
 
+    if (start_scope_sender(SAMPLE_RATE) != 0) {
+        fprintf(stderr, "Could not start the scope sender\n");
+    }
+
     PaStream *stream;
     // fprintf(stderr, "m2_in=%d m2_out=%d in_params.device=%d out_params.device=%d\n",
     //     m2_in, m2_out, in_params.device, out_params.device);
@@ -258,8 +263,11 @@ int main(void) {
     printf("Passing audio straight through. Press Enter to stop.\n");
     getchar();
 
-    //stop UI listener thread
+    // stop UI listener thread
     stop_control_listener();
+
+    // stop the analysis tools
+    stop_scope_sender();
 
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
@@ -292,14 +300,16 @@ void process_fx_chain(fx_chain* chain, float* in_buf, float* out_buf, int buffer
     int m_num = chain->module_count, i = 0;
     //printf("processing audio\n");
     memcpy( out_buf, in_buf, buffer_size * sizeof(float) );
-    // chain->slots[i].process_func(chain->slots[i].engine, in_buf, out_buf, buffer_size);
-    // i++;
+    scope_test_signal(out_buf, buffer_size); 
+    scope_write(SCOPE_CH_A, out_buf, buffer_size);       // dry input signal
+
     while (i < m_num) {
         
         chain->slots[i].process_func(chain->slots[i].engine, out_buf, out_buf, buffer_size);
         i++;
     }
 
+    scope_write(SCOPE_CH_B, out_buf, buffer_size);      // wet output signal
     mono_to_stereo(out_buf, buffer_size);
 }
 
@@ -328,7 +338,7 @@ void mono_to_stereo(float* out_buffer, int mono_size) {
     int stereo_length = mono_size * 2;
     int i = mono_size - 1, j = stereo_length - 1;       //set i to the index of the last mono sample in the buffer, set j to the last index of the buffer
 
-    while (i > 0) {
+    while (i >= 0) {
 
         out_buffer[j] = out_buffer[i];
         j--;

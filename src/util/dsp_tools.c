@@ -318,6 +318,29 @@ void alias_filter_process_gc(biquad* alias_filter, int buffer_size, float* upsam
 }
 
 
+// More robust imaging and aliasing filters
+void ai_aa_filter_init(ai_aa_filter* filter, int oversample_rate, int sample_rate) {
+
+	float q_vals[NUM_AIAA_FILTERS] = AI_AA_Q_VALUES;
+	
+	filter->num_filters = NUM_AIAA_FILTERS;
+	filter->sample_rate = oversample_rate * sample_rate;
+	
+	for(int i = 0; i < NUM_AIAA_FILTERS; i++) {
+
+		filter->filters[i] = bq_new(LOWPASS, 15000, q_vals[i], UNITY_GAIN, filter->sample_rate);
+	}
+	
+}
+
+float process_aiaa_filter(ai_aa_filter* filter, float sample) {
+
+	for (int i = 0; i < filter->num_filters; i++) {
+		sample = bq_process(filter->filters[i], sample);
+	}
+	return sample;
+}
+
 // Low frequency oscillator functions
 void low_freq_oscillator_init(low_freq_oscillator* lfo, float rate_Hz, int sample_rate) {
 

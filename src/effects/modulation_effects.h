@@ -32,10 +32,10 @@
 #define		DFLT_FLNG_DEPTH		1.0f	// in ms
 #define		DFLT_FLNG_DEPTH_SET	0.2f	// in ms
 
-#define		MIN_FLNG_FDBK		-0.9f
+#define		MIN_FLNG_FDBK		0.0f
 #define		MAX_FLNG_FDBK		0.9f
 #define		DFLT_FLNG_FDBK		0.54f
-#define		DFLT_FLNG_FDBK_SET	0.8f
+#define		DFLT_FLNG_FDBK_SET	0.6f
 
 #define		MIN_FLNG_FRWD		-1.0f
 #define		MAX_FLNG_FRWD		1.0f
@@ -46,6 +46,16 @@
 #define		MAX_FLNG_DRY		1.0f
 #define		DFLT_FLNG_DRY		0.8f
 #define		DFLT_FLNG_DRY_SET	0.8f
+
+#define		MIN_FLNG_MIX		0.0f
+#define		MAX_FLNG_MIX		1.0f
+#define		DFLT_FLNG_MIX		0.2f
+#define		DFLT_FLNG_MIX_SET	0.2f
+
+#define		MIN_FLNG_POL		-1.0f
+#define		MAX_FLNG_POL		1.0f
+#define		DFLT_FLNG_POL		1.0f
+#define		DFLT_FLNG_POL_SET	1.0f
 
 #define		MIN_FLNG_HPF		60.0f
 #define		MAX_FLNG_HPF		200.0f
@@ -98,9 +108,11 @@ enum {
 	FLNG_CTRL_RATE,
 	FLNG_CTRL_DEPTH,
 	FLNG_CTRL_FDBK,
-	FLNG_CTRL_FRWD,
-	FLNG_CTRL_BLND,
+	FLNG_CTRL_MIX,
+	// FLNG_CTRL_FRWD,
+	// FLNG_CTRL_BLND,
 	FLNG_CTRL_HPF,
+	FLNG_CTRL_POL,
 	FLNG_CTRL_BYPASS,
 	FLNG_NUM_CONTROLS
 };
@@ -128,6 +140,8 @@ typedef struct {
 	float depth_ms;						// scaled by the output from the LFO. Range: 1 to 10 ms, dflt
 	float depth_samples;
 	float wet_mix;						// Dry/Wet mix control
+
+	int polarity;						// flips the sign of the fed-forward signal
 	int bypass;	
 
 	float samples_per_ms;				// sample rate / 1000, pre-computed
@@ -148,9 +162,11 @@ typedef struct {
 	float depth_samples;
 
 	float feedback_gain;				// gain applied to the feedback for flanger
-	float feedforward_gain;				// wet level and polarity, set notch depth
+	float feedforward_gain;				// set notch depth, interacts with mix and polarity
 	float blend;						// Dry level
-	int bypass;	
+	float mix;							// used to 
+	int polarity;						// governed by a switch, allows for inversion of the delayed signal
+	int bypass;
 	
 	float samples_per_ms;				// sample rate / 1000, pre-computed
 	int sample_rate;
@@ -193,6 +209,8 @@ float set_chorus_bypass(effects_engine* engine, float bypass);
 float set_flanger_rate(effects_engine* engine, float rate);
 float set_flanger_depth(effects_engine* engine, float depth_ms);
 float set_flanger_feedback(effects_engine* engine, float feedback);
+float set_flanger_mix(effects_engine* engine, float mix);
+float set_flanger_polarity(effects_engine* engine, float polarity);
 float set_flanger_feedforward(effects_engine* engine, float feedforward);
 float set_flanger_dry(effects_engine* engine, float dry);
 float set_flanger_hpf(effects_engine* engine, float cutoff);
