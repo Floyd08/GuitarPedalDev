@@ -8,6 +8,14 @@
 // default delay line length, used in both allpass filters and comb filters
 #define		DFLT_DL_SIZE					16384				// 2^14 samples, aprx 372 ms
 
+// general reverb parameters
+#define		MAX_VERB_GAIN		0.98
+#define		DFLT_VERB_GAIN		0.75
+#define		MIN_VERB_GAIN		0.6
+#define		DFLT_VERB_WET		0.25
+#define		MAX_VERB_WET		3
+#define		MAX_VERB_DRY		2
+
 // series all pass reverb parameters
 #define		SERIES_AP_NUM_ALLPASS			5
 #define		SERIES_AP_1_MS					100
@@ -19,24 +27,25 @@
 // freeverb reverb parameters
 #define		FREEVERB_NUM_ALLPASS			4
 #define		FREEVERB_AP_MS					{12.6, 10, 7.73, 5.1}
-#define		DFLT_AP_GAIN					0.75
+#define		DFLT_AP_GAIN					0.5
 #define		FREEVERB_NUM_COMBS				8
 #define		FREEVERB_CB_MS					{25.36, 27, 29.02, 30.81, 32.31, 33.88, 35.38, 36.75}
-#define		DFLT_COMB_GAIN					0.25
+
 #define		COMB_LPF_DFLT_CUTOFF			10000
 #define		COMB_LPF_MIN					1500
 #define		COMB_LPF_MAX					15000
-#define		DFLT_LPF_TONE					0.6
+#define		DFLT_LPF_SET					0.6
+
 #define		MAX_RT60_S						4.0f
 #define		MIN_RT60_S						0.2f
+#define		DFLT_RT60_S						1.0f
+#define		DFLT_DECAY_SET					0.264f
 
-// general reverb parameters
-#define		MAX_VERB_GAIN		0.98
-#define		DFLT_VERB_GAIN		0.75
-#define		MIN_VERB_GAIN		0.6
-#define		DFLT_VERB_WET		0.25
-#define		MAX_VERB_WET		3
-#define		MAX_VERB_DRY		2
+#define		DFLT_FRVRB_DRY					1.0f
+#define		MIN_FRVRB_WET					0.0f
+#define		MAX_FRVRB_WET					3.0f
+#define		DFLT_FRVRB_WET					3.0f
+#define		DFLT_FRVRB_WET_SET				0.25f	
 
 // enumerate reverb controls
 // series_ap controls

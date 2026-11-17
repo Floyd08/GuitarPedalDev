@@ -24,8 +24,7 @@ const ControlDef flanger_controls[FLNG_NUM_CONTROLS] = {
 const ControlDef phaser_controls[PHS_NUM_CONTROLS] = {
 	[PHS_CTRL_RATE] = {.name = "phs_rate", .label = "Rate", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_RATE_SET, .update_func = set_phaser_rate, .units = "Hz" },
 	[PHS_CTRL_DEPTH] = {.name = "phs_depth", .label = "Depth", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_DEPTH_SET, .update_func = set_phaser_depth, .units = "Octaves" },
-	[PHS_CTRL_DRY] = {.name = "phs_dry", .label = "Dry", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_DRY_SET, .update_func = set_phaser_dry, .units = "" },
-	[PHS_CTRL_WET] = {.name = "phs_wet", .label = "Wet", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_WET_SET, .update_func = set_phaser_wet, .units = "" },
+	[PHS_CTRL_MIX] = {.name = "phs_mix", .label = "Mix", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_MIX_SET, .update_func = set_phaser_mix, .units = "" },
 	[PHS_CTRL_FILTERS] = {.name = "phs_filters", .label = "Filters", .type = CTRL_ROTARY, .row = MODULATION_ROW_NUM	, .default_value = DFLT_NUM_FLTR_SET, .update_func = set_phaser_filters, .units = "", .positions = PHS_NUM_ALLPASS },
 	[PHS_CTRL_BYPASS] = { .name = "phs_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = MODULATION_ROW_NUM, .default_value = OFF, .update_func = set_phaser_bypass, .units = "" }
 };
@@ -105,8 +104,7 @@ void phaser_modulation_init(phaser_modulation_engine* m_engine, int sample_rate)
 
 	m_engine->apf_centre = DFLT_PHS_CENTRE;
 	set_phaser_depth(&m_engine->base, DFLT_PHS_DEPTH_SET);
-	set_phaser_dry(&m_engine->base, DFLT_PHS_DRY_SET);
-	set_phaser_wet(&m_engine->base, DFLT_PHS_WET_SET);
+	set_phaser_mix(&m_engine->base, DFLT_PHS_MIX_SET);
 
 	m_engine->sample_rate = sample_rate;
 	m_engine->bypass = OFF;
@@ -326,8 +324,6 @@ float set_flanger_polarity(effects_engine* engine, float polarity) {
 	return new_polarity;
 }
 
-
-// soon to be replaced
 float set_flanger_feedforward(effects_engine* engine, float feedforward) {
 
 	flanger_modulation_engine* m_engine = (flanger_modulation_engine*) engine;
@@ -395,30 +391,14 @@ float set_phaser_depth(effects_engine* engine, float depth) {
 	return new_depth;
 }
 
-float set_phaser_dry(effects_engine* engine, float dry) {
+float set_phaser_mix(effects_engine* engine, float mix) {
 
 	phaser_modulation_engine* m_engine = (phaser_modulation_engine*) engine;
 
-	float normal, new_dry = convert_to_range(dry, MIN_PHS_DRY, MAX_PHS_DRY);
+	m_engine->dry_gain = 1.0f - mix;
+	m_engine->wet_gain = mix;
 
-	normal = new_dry + m_engine->wet_gain;
-	m_engine->dry_gain = new_dry / normal;
-	m_engine->wet_gain = m_engine->wet_gain / normal;
-
-	return new_dry;
-}
-
-float set_phaser_wet(effects_engine* engine, float wet) {
-
-	phaser_modulation_engine* m_engine = (phaser_modulation_engine*) engine;
-
-	float normal, new_wet = convert_to_range(wet, MIN_PHS_WET, MAX_PHS_WET);
-
-	normal = new_wet + m_engine->dry_gain;
-	m_engine->wet_gain = new_wet / normal;
-	m_engine->dry_gain = m_engine->dry_gain / normal;
-
-	return new_wet;
+	return mix;
 }
 
 float set_phaser_filters(effects_engine* engine, float num_filt) {

@@ -81,15 +81,10 @@
 #define		DFLT_PHS_DEPTH		2.0f	
 #define		DFLT_PHS_DEPTH_SET	0.6f
 
-#define		MIN_PHS_DRY			0.01f	// linear <= 1
-#define		MAX_PHS_DRY			1.0f	
-#define		DFLT_PHS_DRY		0.5f	
-#define		DFLT_PHS_DRY_SET	0.5f
-
-#define		MIN_PHS_WET			0.01f	// linear <= 1
-#define		MAX_PHS_WET			1.0f	
-#define		DFLT_PHS_WET		1.0f	
-#define		DFLT_PHS_WET_SET	1.0f
+#define		MIN_PHS_MIX			0.0f	// linear <= 1
+#define		MAX_PHS_MIX			1.0f	
+#define		DFLT_PHS_MIX		0.5f	
+#define		DFLT_PHS_MIX_SET	0.5f
 
 #define		DFLT_NUM_FLTR_SET	1	
 
@@ -121,8 +116,7 @@ extern const ControlDef flanger_controls[FLNG_NUM_CONTROLS];
 enum {
 	PHS_CTRL_RATE,
 	PHS_CTRL_DEPTH,
-	PHS_CTRL_DRY,
-	PHS_CTRL_WET,
+	PHS_CTRL_MIX,
 	PHS_CTRL_FILTERS,
 	PHS_CTRL_BYPASS,
 	PHS_NUM_CONTROLS
@@ -219,8 +213,7 @@ float set_flanger_bypass(effects_engine* engine, float bypass);
 // phaser control functions
 float set_phaser_rate(effects_engine* engine, float rate);
 float set_phaser_depth(effects_engine* engine, float depth);
-float set_phaser_dry(effects_engine* engine, float dry);
-float set_phaser_wet(effects_engine* engine, float wet);
+float set_phaser_mix(effects_engine* engine, float mix);
 float set_phaser_filters(effects_engine* engine, float num_filt);
 float set_phaser_bypass(effects_engine* engine, float bypass);
 
