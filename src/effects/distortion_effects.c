@@ -242,13 +242,10 @@ float bitcrush_distortion(float sample) {
 	return sample;
 }
 
-float atanhf_clipping(float gain, float signal) {
+// rectifiers
+float rectify(float sample) {
 
-	//Next three lines were suggested by Claude, because atanhf can give Nan/Inf results when the input is outside -1 - 1
-	float driven = signal * gain;
-    if (driven > 0.999f) driven = 0.999f;
-    if (driven < -0.999f) driven = -0.999f;
-	return atanhf(driven);
+	return fabsf(sample);
 }
 
 float min_max_fuzz(float sample) {
@@ -274,6 +271,21 @@ float wavefolder_2(float sample) {
 	return sample;
 }
 
+// A softer rectification
+float soft_rectify(float sample, float knee) {
+
+	float rect = sqrtf(sample * sample + knee * knee) - knee;
+	return rect;
+}
+
+float atanhf_clipping(float gain, float signal) {
+
+	//Next three lines were suggested by Claude, because atanhf can give Nan/Inf results when the input is outside -1 - 1
+	float driven = signal * gain;
+    if (driven > 0.999f) driven = 0.999f;
+    if (driven < -0.999f) driven = -0.999f;
+	return atanhf(driven);
+}
 
 float cubic_soft_clipping(float gain, float signal) {
 	

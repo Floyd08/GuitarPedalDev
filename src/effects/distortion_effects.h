@@ -83,6 +83,10 @@ float bitcrush_distortion(float sample);
 float wavefolder_1(float sample);
 float wavefolder_2(float sample);
 
+// rectifiers
+float rectify(float sample);
+float soft_rectify(float sample, float knee);
+
 float atanhf_clipping(float gain, float signal);
 float cubic_soft_clipping(float gain, float signal);
 float simple_asym(float gain, float signal);

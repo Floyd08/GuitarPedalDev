@@ -4,24 +4,27 @@
 #include "Biquad.h"
 #include "control_def.h"
 
-#define		DFLT_LS_CF			0.5		//The default cutoff frequency of the Low Shelf filter
-#define		DFLT_LS_MIN			20		//The minimum frequency of the bass sweep
-#define		DFLT_LS_MAX			400		//The maximum frequency of the bass sweep
+#define		MIN_EQ_LS			60			//The minimum frequency of the bass sweep
+#define		MAX_EQ_LS			400			//The maximum frequency of the bass sweep
+#define		DFLT_EQ_LSCF		230			//The default cutoff frequency of the Low Shelf filter
+#define		DFLT_EQ_LSCF_SET	0.5
 
-#define		DFLT_HS_CF			0.5		//The default cutoff frequency of the high Shelf filter
-#define		DFLT_HS_MIN			2000	//The minimum frequency of the mid sweep
-#define		DFLT_HS_MAX			20000	//The maximum frequency of the mid sweep
+#define		MIN_EQ_HS			1500		//The minimum frequency of the mid sweep
+#define		MAX_EQ_HS			8000		//The maximum frequency of the mid sweep
+#define		DFLT_EQ_HSCF		4750		//The default cutoff frequency of the high Shelf filter
+#define		DFLT_EQ_HSCF_SET	0.5			
 
-#define		DFLT_MP_CF			0.5		//The default centre frequency of the mid peaking filter
-#define		DFLT_MP_MIN			500		//The minimum frequency of the treble sweep
-#define		DFLT_MP_MAX			2500	//The maximum frequency of the treble sweep
+#define		MIN_EQ_MP			500			//The minimum frequency of the treble sweep
+#define		MAX_EQ_MP			2500		//The maximum frequency of the treble sweep
+#define		DFLT_EQ_MPCF		1500		//The default centre frequency of the mid peaking filter
+#define		DFLT_EQ_MPCF_SET	0.5
 
-#define		MID_Q				1		//Q set for the mid peaking filter
-#define		BUTTERWORTH_Q		0.7071	//Used for the high and low shelf filter
+#define		MID_Q				1			//Q set for the mid peaking filter
 
-#define 	MIN_GAIN_EQ			-15		//Used in the input conversion
+#define 	MIN_GAIN_EQ			-15			//Used in the input conversion
 #define 	MAX_GAIN_EQ			+15
-#define		DFLT_GAIN			0.5		// Unity gain
+#define		DFLT_GAIN			UNITY_GAIN	// Unity gain
+#define		DFLT_GAIN_SET		0.5	
 
 enum {
 	EQ_CTRL_B_GAIN,						// Bass gain control
@@ -63,9 +66,6 @@ float EQ_update_mpf_gain(effects_engine* engine, float new_gain);
 float EQ_update_lsf_centre(effects_engine* engine, float new_gain);
 float EQ_update_mpf_centre(effects_engine* engine, float new_gain);
 float EQ_update_hsf_centre(effects_engine* engine, float new_gain);
-
-float EQ_convert_Hz(float value, float new_min, float new_max);
-float EQ_convert_dB(float value);
 
 void EQ_free(EQ_engine* eq);
 

@@ -15,8 +15,10 @@
 /*----------------------------------------------------------------------------------------------*/
 // dB to linear gain conversions
 #define		minus_60dB				0.001
+#define		minus_40dB				0.0100
 #define		minus_30dB				0.0316
 #define		minus_21dB				0.0891
+#define		minus_20dB				0.1000
 #define		minus_15dB				0.1778
 #define		minus_12dB				0.2512
 #define		minus_6dB				0.5012
@@ -62,14 +64,14 @@ typedef struct {
 
 typedef struct {
 
-	float phase;				// current state of the LFO
-	float phi_increment;		// rate_hz / sample_rate
+	double phase;				// current state of the LFO
+	double phi_increment;		// rate_hz / sample_rate
 
 } low_freq_oscillator;
 
 typedef struct{
 
-	unsigned int ap_delay_ms;			// the delay in milliseconds
+	float ap_delay_ms;					// the delay in milliseconds
 	unsigned int ap_delay_samples;		// the delay in samples
 	ring_buffer ap_buffer;				// the ring buffer, of size SAMPLES * size
 	float ap_gain;						// the gain factor applied either to feedback or feed forward has a similar effect as in a delay 
@@ -78,7 +80,7 @@ typedef struct{
 
 typedef struct {
 
-	unsigned int vc_delay_ms;			// the delay in milliseconds
+	float vc_delay_ms;					// the delay in milliseconds
 	unsigned int vc_delay_samples;		// the delay in samples
 	ring_buffer vc_buffer;				// the ring buffer, of size SAMPLES * size
 	float comb_gain;					// the gain factor applied to the fedback sample (use this later for decay)
@@ -111,11 +113,13 @@ void set_lfo_rate(low_freq_oscillator* lfo, float rate_Hz, int sample_rate);
 
 
 void allpass_init(allpass_filter* apf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float gain);
+void allpass_free(allpass_filter* apf);
 float process_allpass(allpass_filter* apf, float sample);
 void ap_update_gain(allpass_filter* apf, float gain);
 
 
 void verb_comb_init(verb_comb_filter* vcf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float lpf_centre, float gain);
+void verb_comb_free(verb_comb_filter* vcf);
 float process_verb_comb(verb_comb_filter* vcf, float sample);
 void verb_comb_update_gain(verb_comb_filter* vcf, float gain);
 
@@ -139,8 +143,5 @@ float convert_to_range(float value, float min, float max);
 float convert_to_rotary(float control_sig, int num_positions);
 float linear_gain_to_decibels(float linear);
 float linear_interpolate(float fractional_index, float sample1, float sample2);
-
-float rectify(float sample);
-float soft_rectify(float sample, float knee);
 
 #endif

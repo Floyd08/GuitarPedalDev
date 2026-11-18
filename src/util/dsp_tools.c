@@ -155,10 +155,12 @@ unsigned int wrap_index(unsigned int current_index, int index_mod, unsigned int 
 // allpass filters
 void allpass_init(allpass_filter* apf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float gain) {
 
+	int rb_create = 1;
+
 	apf->ap_delay_ms = length_ms;
 	apf->ap_delay_samples = lroundf(length_ms * (sample_rate / 1000));
-	//fprintf(stderr, "delay in samples %u\n", apf->ap_delay_samples);
-	r_buffer_init(&apf->ap_buffer, dl_length);
+	
+	rb_create =  r_buffer_init(&apf->ap_buffer, dl_length);
 	apf->ap_gain = gain;
 }
 
@@ -368,8 +370,9 @@ void set_lfo_rate(low_freq_oscillator* lfo, float rate_Hz, int sample_rate) {
 
 
 // Helper functions
+
 // linear_to_log is not a very good name for this. what it actually does it:
-// convert one range of values to another range of values using a linear curve.
+// convert one range of values to another range of values using an exponential curve.
 float linear_to_log(float linear_val, float min, float max) {
     
 	return min * powf(max / min, linear_val);
@@ -407,17 +410,4 @@ float linear_interpolate(float fractional_index, float sample1, float sample2) {
 	difference = 1 - fraction;
 
 	return (sample1 * difference) + (sample2 * fraction);
-}
-
-// these two probably belong in distortion_effects
-float rectify(float sample) {
-
-	return fabsf(sample);
-}
-
-// A softer rectification
-float soft_rectify(float sample, float knee) {
-
-	float rect = sqrtf(sample * sample + knee * knee) - knee;
-	return rect;
 }
