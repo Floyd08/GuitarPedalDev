@@ -109,7 +109,7 @@ float EQ_update_lsf_centre(effects_engine* engine, float bass_centre) {
 	
 	EQ_engine* eq = (EQ_engine*)engine;
 	
-	float new_centre_freq = linear_to_log(bass_centre, MIN_EQ_LS, MAX_EQ_LS);
+	float new_centre_freq = convert_to_range_exp(bass_centre, MIN_EQ_LS, MAX_EQ_LS);
 	
 	bq_update(eq->lsf, LOWSHELF, new_centre_freq, BUTTERWORTH_Q, eq->lsf_gain, eq->sample_rate);
 	eq->lsf_centre = new_centre_freq;
@@ -121,7 +121,7 @@ float EQ_update_mpf_centre(effects_engine* engine, float mid_centre) {
 	
 	EQ_engine* eq = (EQ_engine*)engine;
 
-	float new_centre_freq = linear_to_log(mid_centre, MIN_EQ_MP, MAX_EQ_MP);
+	float new_centre_freq = convert_to_range_exp(mid_centre, MIN_EQ_MP, MAX_EQ_MP);
 	
 	bq_update(eq->mpf, PEAK, new_centre_freq, MID_Q, eq->mpf_gain, eq->sample_rate);
 	eq->mpf_centre = new_centre_freq;
@@ -133,7 +133,7 @@ float EQ_update_hsf_centre(effects_engine* engine, float treble_centre) {
 	
 	EQ_engine* eq = (EQ_engine*)engine;
 	
-	float new_centre_freq = linear_to_log(treble_centre, MIN_EQ_HS, MAX_EQ_HS);
+	float new_centre_freq = convert_to_range_exp(treble_centre, MIN_EQ_HS, MAX_EQ_HS);
 	
 	bq_update(eq->hsf, HIGHSHELF, new_centre_freq, BUTTERWORTH_Q, eq->hsf_gain, eq->sample_rate);
 	eq->hsf_centre = new_centre_freq;

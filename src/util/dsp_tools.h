@@ -152,7 +152,7 @@ void downsample_mono(float* upsampled_buf, int upsample_factor, float* output_bu
 void downsample_stereo(float* upsampled_buf, int upsample_factor, float* output_buf, int buffer_size);
 
 
-float linear_to_log(float linear_val, float min, float max);
+float convert_to_range_exp(float linear_val, float min, float max);
 float convert_to_range(float value, float min, float max);
 float convert_to_rotary(float control_sig, int num_positions);
 float linear_gain_to_decibels(float linear);

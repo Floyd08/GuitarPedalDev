@@ -409,7 +409,7 @@ void set_lfo_rate(low_freq_oscillator* lfo, float rate_Hz, int sample_rate) {
 
 // linear_to_log is not a very good name for this. what it actually does it:
 // convert one range of values to another range of values using an exponential curve.
-float linear_to_log(float linear_val, float min, float max) {
+float convert_to_range_exp(float linear_val, float min, float max) {
     
 	return min * powf(max / min, linear_val);
 }

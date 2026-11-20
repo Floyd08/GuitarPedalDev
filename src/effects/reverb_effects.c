@@ -187,7 +187,7 @@ float set_freeverb_decay(effects_engine* engine, float decay) {
 
 	float new_comb_gain;
 	float comb_ms[FREEVERB_NUM_COMBS] = FREEVERB_CB_MS;
-	float new_rt60 = linear_to_log(decay, MIN_RT60_S, MAX_RT60_S);
+	float new_rt60 = convert_to_range_exp(decay, MIN_RT60_S, MAX_RT60_S);
 	
 	for(int i = 0; i < FREEVERB_NUM_COMBS; i++) {
 

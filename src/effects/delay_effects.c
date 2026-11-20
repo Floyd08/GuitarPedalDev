@@ -84,7 +84,7 @@ float set_delay_fdbk_gain(effects_engine* engine, float gain) {
 
 	delay_engine* dl_engine = (delay_engine*)engine;
 
-	float new_feedback = linear_to_log(gain, minus_12dB, _0dB);					// sets a logarithmic range for feedback gain
+	float new_feedback = convert_to_range_exp(gain, minus_12dB, _0dB);					// sets a logarithmic range for feedback gain
 	dl_engine->feedback_gain = new_feedback;
 
 	return linear_gain_to_decibels(new_feedback);

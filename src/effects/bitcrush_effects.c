@@ -32,6 +32,7 @@ void bitcrush_init(bit_engine* b_engine, int sample_rate) {
 	b_engine->bp_make_gain = _0dB;
 
 	set_btcrsh_gain(&b_engine->base, DFLT_BCRSH_GAIN_SET);
+	set_btcrsh_lvl(&b_engine->base, DFLT_BCRSH_LVL_SET);
 
 	b_engine->bypass = OFF;
 }
@@ -39,6 +40,10 @@ void bitcrush_init(bit_engine* b_engine, int sample_rate) {
 void process_bitcrush(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size) {
 
 	bit_engine* b_engine = (bit_engine*)engine;
+
+	if (b_engine->bypass == 0) {
+		return;
+	}
 
 	float sample;
 	for(int i = 0; i < buffer_size; i++) {
@@ -98,7 +103,7 @@ float set_btcrsh_gain(effects_engine* engine, float gain) {
 
 	bit_engine* b_engine = (bit_engine*)engine;
 
-	float new_gain = linear_to_log(gain, MIN_BCRSH_GAIN, MAX_BCRSH_GAIN);
+	float new_gain = convert_to_range_exp(gain, MIN_BCRSH_GAIN, MAX_BCRSH_GAIN);
 	b_engine->gain = new_gain;
 	b_engine->inv_gain = 1.0f / new_gain;
 
@@ -123,13 +128,13 @@ float set_btcrsh_bp(effects_engine* engine, float band) {
 	float band_lpfreq, band_hpfreq, gain;
 
 	// update make up gain
-	gain = linear_to_log(band, _0dB, MAX_BP_MK_GAIN);
+	gain = convert_to_range_exp(band, _0dB, MAX_BP_MK_GAIN);
 	b_engine->bp_make_gain = gain;
 
 	// update filters
-	band_hpfreq = linear_to_log(band, MIN_BIT_HP, MAX_BIT_HP);
+	band_hpfreq = convert_to_range_exp(band, MIN_BIT_HP, MAX_BIT_HP);
 	band = 1 - band;															// invert the control signal 
-	band_lpfreq = linear_to_log(band, MIN_BIT_LP, MAX_BIT_LP);
+	band_lpfreq = convert_to_range_exp(band, MIN_BIT_LP, MAX_BIT_LP);
 	
 	bq_update(b_engine->hpf1, HIGHPASS, band_hpfreq, BIT_BP_Q, UNITY_GAIN, b_engine->sample_rate);
 	bq_update(b_engine->hpf2, HIGHPASS, band_hpfreq, BIT_BP_Q, UNITY_GAIN, b_engine->sample_rate);
@@ -142,7 +147,7 @@ float set_btcrsh_lvl(effects_engine* engine, float level) {
 
 	bit_engine* b_engine = (bit_engine*)engine;
 
-	float new_level = linear_to_log(level, MIN_BCRSH_LVL, MAX_BCRSH_LVL);
+	float new_level = convert_to_range_exp(level, MIN_BCRSH_LVL, MAX_BCRSH_LVL);
 	b_engine->level = new_level;
 
 	return linear_gain_to_decibels(new_level);

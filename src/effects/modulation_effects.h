@@ -73,8 +73,8 @@
 
 #define		MIN_PHS_FLTRS		1
 #define		MAX_PHS_FLTRS		PHS_NUM_ALLPASS
-#define		DFLT_PHS_FLTRS		PHS_NUM_ALLPASS
-#define		DFLT_PHS_SET		1
+#define		DFLT_PHS_FLTRS		4
+#define		DFLT_PHS_FLTRS_SET	0.3
 
 #define		MIN_PHS_DEPTH		0.5f	// in octaves
 #define		MAX_PHS_DEPTH		3.0f	
@@ -84,9 +84,7 @@
 #define		MIN_PHS_MIX			0.0f	// linear <= 1
 #define		MAX_PHS_MIX			1.0f	
 #define		DFLT_PHS_MIX		0.5f	
-#define		DFLT_PHS_MIX_SET	0.5f
-
-#define		DFLT_NUM_FLTR_SET	1	
+#define		DFLT_PHS_MIX_SET	0.5f	
 
 // enumerate modulation effect controls
 // chorus controls

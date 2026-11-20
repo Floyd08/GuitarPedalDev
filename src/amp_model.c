@@ -222,7 +222,7 @@ float set_preamp_gain(effects_engine* engine, float gain) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_gain = linear_to_log(gain, minus_3dB, plus_21dB);
+	float converted_gain = convert_to_range_exp(gain, minus_3dB, plus_21dB);
 	a_mod->pr_amp.gain = converted_gain;
 
 	return linear_gain_to_decibels(converted_gain);
@@ -232,7 +232,7 @@ float set_preamp_drive(effects_engine* engine, float drive) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_drive = linear_to_log(drive, minus_3dB, plus_21dB);
+	float converted_drive = convert_to_range_exp(drive, minus_3dB, plus_21dB);
 	a_mod->pr_amp.drive = converted_drive;
 
 	return linear_gain_to_decibels(converted_drive);
@@ -242,7 +242,7 @@ float set_preamp_level(effects_engine* engine, float level) {
 
 	amp_model* a_mod = (amp_model*)engine;
 
-	float converted_level = linear_to_log(level, MIN_PRAMP_LVL, MAX_PRAMP_LVL);
+	float converted_level = convert_to_range_exp(level, MIN_PRAMP_LVL, MAX_PRAMP_LVL);
 	a_mod->pr_amp.level = converted_level;
 
 	return linear_gain_to_decibels(converted_level);

@@ -25,7 +25,7 @@ const ControlDef phaser_controls[PHS_NUM_CONTROLS] = {
 	[PHS_CTRL_RATE] = {.name = "phs_rate", .label = "Rate", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_RATE_SET, .update_func = set_phaser_rate, .units = "Hz" },
 	[PHS_CTRL_DEPTH] = {.name = "phs_depth", .label = "Depth", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_DEPTH_SET, .update_func = set_phaser_depth, .units = "Octaves" },
 	[PHS_CTRL_MIX] = {.name = "phs_mix", .label = "Mix", .type = CTRL_KNOB, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_MIX_SET, .update_func = set_phaser_mix, .units = "" },
-	[PHS_CTRL_FILTERS] = {.name = "phs_filters", .label = "Filters", .type = CTRL_ROTARY, .row = MODULATION_ROW_NUM	, .default_value = DFLT_NUM_FLTR_SET, .update_func = set_phaser_filters, .units = "", .positions = PHS_NUM_ALLPASS },
+	[PHS_CTRL_FILTERS] = {.name = "phs_filters", .label = "Filters", .type = CTRL_ROTARY, .row = MODULATION_ROW_NUM	, .default_value = DFLT_PHS_FLTRS_SET, .update_func = set_phaser_filters, .units = "", .positions = PHS_NUM_ALLPASS },
 	[PHS_CTRL_BYPASS] = { .name = "phs_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = MODULATION_ROW_NUM, .default_value = OFF, .update_func = set_phaser_bypass, .units = "" }
 };
 

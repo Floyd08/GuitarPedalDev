@@ -56,7 +56,7 @@ float set_distort_gain (effects_engine* engine, float gain) {
 	distortion_engine* d_engine = (distortion_engine*)engine;
 
 	//float converted_gain = expf(gain * 3.41);
-	float converted_gain = linear_to_log(gain, minus_3dB, plus_30dB);
+	float converted_gain = convert_to_range_exp(gain, minus_3dB, plus_30dB);
 	int stage_index = d_engine->control_stages[0];
 	d_engine->d_stages[stage_index]->gain = converted_gain;
 

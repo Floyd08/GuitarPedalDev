@@ -77,7 +77,7 @@ float set_comp_attack(effects_engine* engine, float attack) {
 
 	compressor_engine* c_engine = (compressor_engine*)engine;
 
-	float new_attack = linear_to_log(attack, MIN_COMP_ATCK, MAX_COMP_ATCK);
+	float new_attack = convert_to_range_exp(attack, MIN_COMP_ATCK, MAX_COMP_ATCK);
 	c_engine->attack_ms = new_attack;
 	c_engine->attack_alpha = expf(-1.0f / ( new_attack * (0.001f * c_engine->sample_rate)) );
 
@@ -88,7 +88,7 @@ float set_comp_release(effects_engine* engine, float release) {
 
 	compressor_engine* c_engine = (compressor_engine*)engine;
 
-	float new_release = linear_to_log(release, MIN_COMP_RLSE, MAX_COMP_RLSE);
+	float new_release = convert_to_range_exp(release, MIN_COMP_RLSE, MAX_COMP_RLSE);
 	c_engine->release_ms = new_release;
 	c_engine->release_alpha = expf(-1.0f / ( new_release * (0.001f * c_engine->sample_rate)) );
 
@@ -99,7 +99,7 @@ float set_comp_mkp_gain(effects_engine* engine, float gain) {
 
 	compressor_engine* c_engine = (compressor_engine*)engine;
 
-	float new_gain = linear_to_log(gain, MIN_COMP_MKGAIN, MAX_COMP_MKGAIN);	//convert the linear range 0-1 to the logarithmic range 1-5.6234
+	float new_gain = convert_to_range_exp(gain, MIN_COMP_MKGAIN, MAX_COMP_MKGAIN);	//convert the linear range 0-1 to the logarithmic range 1-5.6234
 	c_engine->makeup_gain = new_gain;
 
 	return linear_gain_to_decibels(new_gain);
@@ -109,7 +109,7 @@ float set_comp_threshold(effects_engine* engine, float threshold) {
 
 	compressor_engine* c_engine = (compressor_engine*)engine;
 
-	// float new_threshold = linear_to_log(threshold, MIN_COMP_THRSH, MAX_COMP_THRSH);
+	// float new_threshold = convert_to_range_exp(threshold, MIN_COMP_THRSH, MAX_COMP_THRSH);
 	// c_engine->threshold = new_threshold;
 	float new_threshold = convert_to_range(threshold, MIN_COMP_THRSH, MAX_COMP_THRSH);
 	c_engine->threshold_dB = new_threshold;
@@ -122,7 +122,7 @@ float set_comp_ratio(effects_engine* engine, float ratio) {
 
 	compressor_engine* c_engine = (compressor_engine*)engine;
 
-	float new_ratio = linear_to_log(ratio, MIN_COMP_RATIO, MAX_COMP_RATIO);		// converts linear 0-1 to logarithmic 1-20
+	float new_ratio = convert_to_range_exp(ratio, MIN_COMP_RATIO, MAX_COMP_RATIO);		// converts linear 0-1 to logarithmic 1-20
 	float new_exponent = 1.0f - 1.0f / new_ratio;								// If I want a limiter later, setting the exponent to exactly 1.0f would do that
 	c_engine->ratio = new_ratio;
 	c_engine->exponent = new_exponent;
@@ -134,7 +134,7 @@ float set_comp_level(effects_engine* engine, float ratio) {
 
 	compressor_engine* c_engine = (compressor_engine*)engine;
 
-	float new_level = linear_to_log(ratio, MIN_COMP_LVL, MAX_COMP_LVL);
+	float new_level = convert_to_range_exp(ratio, MIN_COMP_LVL, MAX_COMP_LVL);
 	c_engine->level = new_level;
 
 	return linear_gain_to_decibels(new_level);
