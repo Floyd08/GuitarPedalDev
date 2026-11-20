@@ -38,20 +38,20 @@ void chorus_modulation_init(chorus_modulation_engine* m_engine, int sample_rate)
 	base.colour = "#FF00FF";
 	m_engine->base = base;
 
-	float samples_per_ms = sample_rate / 1000;
+	float samples_per_ms = sample_rate / 1000.0f;
 
 	low_freq_oscillator_init(&m_engine->lfo, DFLT_CH_RATE, sample_rate);
 	r_buffer_init(&m_engine->chorus_line, CH_BUFF_SIZE);
 	m_engine->base_delay_ms = CH_BASE_DLY;
 	m_engine->base_delay_samples = CH_BASE_DLY * samples_per_ms;
-
-	//set_chorus_rate(&m_engine->base, DFLT_CH_RATE_SET);
-	set_chorus_depth(&m_engine->base, DFLT_FLNG_DEPTH_SET);
-	m_engine->wet_mix = DFLT_CH_WET;
-
 	m_engine->sample_rate = sample_rate;
 	m_engine->samples_per_ms = samples_per_ms;
 	m_engine->bypass = OFF;
+
+	set_chorus_rate(&m_engine->base, DFLT_CH_RATE_SET);
+	set_chorus_depth(&m_engine->base, DFLT_FLNG_DEPTH_SET);
+	m_engine->wet_mix = DFLT_CH_WET;
+	
 }
 
 void flanger_modulation_init(flanger_modulation_engine* m_engine, int sample_rate) {
@@ -242,7 +242,7 @@ float set_chorus_depth(effects_engine* engine, float depth_ms) {
 	float new_depth = convert_to_range(depth_ms, MIN_CH_DEPTH, MAX_CH_DEPTH);
 
 	m_engine->depth_ms = new_depth;
-	m_engine->base_delay_samples = new_depth * m_engine->samples_per_ms;
+	m_engine->depth_samples = new_depth * m_engine->samples_per_ms;
 
 	return new_depth;
 }

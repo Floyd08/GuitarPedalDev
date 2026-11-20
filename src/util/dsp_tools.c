@@ -46,6 +46,42 @@ void set_env_release(envelope_follower* e_fol, float new_release_time, int sampl
 }
 
 
+// smoother
+void smoother_init(smoother* sm, float init_value, float attack_ms, int sample_rate) {
+
+	sm->state = init_value;
+	set_smoother_attack(sm, attack_ms, sample_rate);
+}
+
+void process_smoother(smoother* sm, float target_value) {
+
+	float gap;
+	// if the state is already right, return
+	if (sm->state == target_value) {
+		return;
+	}
+
+	// move towards the target value
+	sm->state = sm->state + (target_value - sm->state) * sm->complement_coeff;
+	gap = sm->state - target_value;
+	// once we're within epsilon, just jump the last bit
+	if ( fabsf(gap) <= SMTHER_EPSILON ) {
+		sm->state = target_value;
+	}
+}
+
+void set_smoother_attack(smoother* sm, float attack_ms, int sample_rate) {
+
+	if(attack_ms <= 0) {
+		fprintf(stderr, "smoother attack time must be > 0\n");
+	}
+
+	sm->attack_ms = attack_ms;
+	sm->attack_alpha = expf(-1.0f / (attack_ms * 0.001f * sample_rate));
+	
+	sm->complement_coeff = 1.0f - sm->attack_alpha; 
+}
+
 // Ring Buffer
 int r_buffer_init(ring_buffer* r_buffer, unsigned int size) {
 

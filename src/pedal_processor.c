@@ -21,16 +21,16 @@
 #include "bitcrush_effects.h"
 #include "amp_model.h"
 
-#define UPDATE_INTERVAL         6                   // The number of controls that are checked an possibly updated per callback cycle
+// #define UPDATE_INTERVAL         6                   // The number of controls that are checked and possibly updated per callback cycle
 
 //global arrays, to cache the current value of effects parameters, and the pointers needed to update them.
-float current_params[MAX_CONTROLS];
+smoother current_params[MAX_CONTROLS];
 float update_params[MAX_CONTROLS];
 param_update update_funcs[MAX_CONTROLS];
 effects_engine* e_points[MAX_CONTROLS];
 
 // control_index holds the last index of current_params checked for a change from the UI.
-// a loop in callback checks UPDATE_INTERVAL cached parameters against same index in update_params
+// a loop in callback checks UPDATE_INTERVAL cached parameters against that same index in update_params
 int control_index = 0;
 
 static int callback(const void *input, void *output, unsigned long frame_count,
@@ -51,21 +51,23 @@ static int callback(const void *input, void *output, unsigned long frame_count,
     //Read atomic variables - these values are set by UI components.
     float display_value;                                                                    // sent back to the UI for the control panel display 
     int ctrl_count = get_control_count();
-    for (int i = 0; i < UPDATE_INTERVAL; i++) {
+    // for (int i = 0; i < UPDATE_INTERVAL; i++) {
+    for (int i = 0; i < ctrl_count; i++) {                   
 
         update_params[control_index] = get_control(control_index);
 
-        if (update_params[control_index] != current_params[control_index]) {
+        if (update_params[control_index] != current_params[control_index].state) {
 
             param_update func = get_control_func(control_index);
-            display_value = func(e_points[control_index], update_params[control_index]);
-            current_params[control_index] = update_params[control_index];
+
+            process_smoother(&current_params[control_index], update_params[control_index]);
+            display_value = func(e_points[control_index], current_params[control_index].state);
 
             set_display_value(control_index, display_value);
         }
 
-        if (control_index == ctrl_count - 1) {
-            control_index = 0;
+        if (control_index == ctrl_count - 1) {                              // max controls is 64, but we don't intialize 64 indices, only ctrl_count indices
+            control_index = 0;                                              // so we wrap around when control_index would exceed ctrl_count
         }
         else {
             control_index++;
@@ -172,12 +174,12 @@ int main(void) {
     distortion_engine d_engine;
     build_fav_distort_1(&d_engine, up_sampling_factor, SAMPLE_RATE, FRAMES_PER_BUFFER);
     // stage_testing(&d_engine, SAMPLE_RATE, FRAMES_PER_BUFFER);
-    // EQ_engine eq_engine;
-    // EQ_init(&eq_engine, SAMPLE_RATE);
+    EQ_engine eq_engine;
+    EQ_init(&eq_engine, SAMPLE_RATE);
     delay_engine dl_engine;
     delay_engine_init(&dl_engine, SAMPLE_RATE, FRAMES_PER_BUFFER);
-    // bit_engine b_engine;
-    // bitcrush_init(&b_engine, SAMPLE_RATE);
+    bit_engine b_engine;
+    bitcrush_init(&b_engine, SAMPLE_RATE);
     // series_ap_reverb_engine r_engine;
     // series_ap_reverb_engine_init(&r_engine, SAMPLE_RATE);
     freeverb_reverb_engine r_engine;
@@ -203,12 +205,12 @@ int main(void) {
     // control registration is handled by fx_chain_append
     int append_ers[NUM_EFFECTS];
     append_ers[0] = fx_chain_append(&chain, &c_engine.base, process_compressor);
-    append_ers[1] = fx_chain_append(&chain, &d_engine.base, process_distortion);
+    // append_ers[1] = fx_chain_append(&chain, &d_engine.base, process_distortion);
     // append_ers[2] = fx_chain_append(&chain, &eq_engine.base, process_EQ);
-    // append_ers[3] = fx_chain_append(&chain, &b_engine.base, process_bitcrush);
+    append_ers[3] = fx_chain_append(&chain, &b_engine.base, process_bitcrush);
     // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_chorus);
     // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_flanger);
-    append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_phaser);
+    // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_phaser);
     // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_series_ap_reverb);
     // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_freeverb);
     // append_ers[6] = fx_chain_append(&chain, &dl_engine.base, process_delay);
@@ -231,7 +233,8 @@ int main(void) {
     int ctrl_count = get_control_count();                  // Once controls are registered, the shared Params will have been intialized with their default values
     for (int i = 0; i < ctrl_count; i++) {                 // so we set the current values from those 
 
-        current_params[i] = get_control(i);
+        //current_params[i] = get_control(i);
+        smoother_init(&current_params[i], get_control(i), SMTHER_ATCK_MS, SAMPLE_RATE / FRAMES_PER_BUFFER);
     }
 
     // Next we initialize the listener thread. This thread listens from control signals from the UI components

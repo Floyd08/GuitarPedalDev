@@ -32,6 +32,11 @@
 #define DFLT_COMP_RATIO				4
 #define DFLT_COMP_RATIO_SET			0.2
 
+#define MIN_COMP_LVL				minus_9dB
+#define	MAX_COMP_LVL				plus_9dB
+#define	DFLT_COMP_LVL				_0dB
+#define DFLT_COMP_LVL_SET			0.5
+
 // #define DFLT_ENV_ATCK				10.0
 // #define DFLT_ENV_RLSE				50.0
 
@@ -42,6 +47,7 @@ enum {
 	COMP_CTRL_THRSH,
 	COMP_CTRL_MKGAIN,
 	COMP_CTRL_RATIO,
+	COMP_CTRL_LVL,
 	COMP_CTRL_BYPASS,
 	COMP_NUM_CONTROLS
 };
@@ -64,6 +70,7 @@ typedef struct {
 
 	float peak_dB;
 	float reduction_dB;
+	float level;
 
 	int sample_rate;
 	int bypass;
@@ -78,6 +85,7 @@ float set_comp_release(effects_engine* engine, float release);
 float set_comp_mkp_gain(effects_engine* engine, float gain);
 float set_comp_threshold(effects_engine* engine, float threshold);
 float set_comp_ratio(effects_engine* engine, float ratio);
+float set_comp_level(effects_engine* engine, float ratio);
 float set_comp_bypass(effects_engine* engine, float bypass);
 
 #endif

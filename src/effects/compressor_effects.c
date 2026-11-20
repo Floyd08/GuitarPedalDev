@@ -10,6 +10,7 @@ const ControlDef compressor_controls[COMP_NUM_CONTROLS] = {
 	[COMP_CTRL_MKGAIN] = { .name = "cmp_mk_gain", .label = "Make-up Gain", .type = CTRL_KNOB, .row = COMPRESSOR_ROW_NUM, .default_value = DFLT_COMP_MKGAIN_SET, .update_func = set_comp_mkp_gain, .units = "dB"  },
 	[COMP_CTRL_THRSH] = { .name = "cmp_threshold", .label = "Threshold", .type = CTRL_KNOB, .row = COMPRESSOR_ROW_NUM, .default_value = DFLT_COMP_MKGAIN_SET, .update_func = set_comp_threshold, .units = "dB" },
 	[COMP_CTRL_RATIO] = { .name = "cmp_ratio", .label = "Ratio", .type = CTRL_KNOB, .row = COMPRESSOR_ROW_NUM, .default_value = DFLT_COMP_RATIO_SET, .update_func = set_comp_ratio, .units = "" },
+	[COMP_CTRL_LVL] = { .name = "cmp_level", .label = "Level", .type = CTRL_KNOB, .row = COMPRESSOR_ROW_NUM, .default_value = DFLT_COMP_LVL_SET, .update_func = set_comp_level, .units = "dB" },
 	[COMP_CTRL_BYPASS] = { .name = "cmp_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = COMPRESSOR_ROW_NUM, .default_value = OFF, .update_func = set_comp_bypass, .units = "" }
 };
 
@@ -30,6 +31,7 @@ void compressor_init(compressor_engine* c_engine, int sample_rate) {
 	set_comp_threshold(&c_engine->base, DFLT_COMP_THRSH_SET);
 	set_comp_mkp_gain(&c_engine->base, DFLT_COMP_MKGAIN_SET);
 	set_comp_ratio(&c_engine->base, DFLT_COMP_RATIO_SET);
+	set_comp_level(&c_engine->base, DFLT_COMP_LVL_SET);
 	c_engine->bypass = OFF;
 }
 
@@ -41,7 +43,7 @@ void process_compressor(effects_engine* engine, float *in_buf, float *out_buf, i
 		return;
 	}
 
-	float level_dB, over_dB, target_dB, released, gain;
+	float level_dB, over_dB, target_dB, released, gain, output;
 
 	for(int i = 0; i < buffer_size; i++) {
 
@@ -64,22 +66,11 @@ void process_compressor(effects_engine* engine, float *in_buf, float *out_buf, i
 
 		// Apply compression and make up gain
 		gain = powf(10.0f, -(c_engine->reduction_dB / 20.0f) ) * c_engine->makeup_gain;
-		out_buf[i] = in_buf[i] * gain;
+		output = in_buf[i] * gain;
+		out_buf[i] = output * c_engine->level;
 
 	}
-	// float gain_scale;
-
-	// for(int i = 0; i < buffer_size; i++) {
-
-	// 	gain_scale = 1.0f;
-	// 	process_envelope_follower(&c_engine->e_fol, in_buf[i]);									//update the state of the envelope with this sample
-		
-	// 	if (c_engine->e_fol.state > c_engine->threshold) {
-	// 		gain_scale = powf(c_engine->threshold / c_engine->e_fol.state, c_engine->exponent);
-	// 	}
-	// 	out_buf[i] = in_buf[i] * gain_scale * c_engine->makeup_gain;
-	// 	// out_buf[i] = tanhf(out_buf[i]);														//prevents make up gain from driving the signal too hard
-	// }
+	
 }
 
 float set_comp_attack(effects_engine* engine, float attack) {
@@ -137,6 +128,16 @@ float set_comp_ratio(effects_engine* engine, float ratio) {
 	c_engine->exponent = new_exponent;
 
 	return new_ratio;
+}
+
+float set_comp_level(effects_engine* engine, float ratio) {
+
+	compressor_engine* c_engine = (compressor_engine*)engine;
+
+	float new_level = linear_to_log(ratio, MIN_COMP_LVL, MAX_COMP_LVL);
+	c_engine->level = new_level;
+
+	return linear_gain_to_decibels(new_level);
 }
 
 float set_comp_bypass(effects_engine* engine, float bypass) {

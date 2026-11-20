@@ -39,7 +39,7 @@ void EQ_init(EQ_engine* eq, int sample_rate) {
 	EQ_update_hsf_centre(&eq->base, DFLT_EQ_HSCF_SET);
 
 	eq->mpf = bq_new(PEAK, DFLT_EQ_MPCF, MID_Q, DFLT_GAIN, sample_rate);
-	eq->mpf_gain - DFLT_GAIN;
+	eq->mpf_gain = DFLT_GAIN;
 	EQ_update_mpf_gain(&eq->base, DFLT_GAIN_SET);
 	eq->mpf_centre = DFLT_EQ_MPCF;
 	EQ_update_mpf_centre(&eq->base, DFLT_EQ_MPCF_SET);

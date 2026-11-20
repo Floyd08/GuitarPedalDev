@@ -7,6 +7,7 @@
 #define NUM_OUT_CHANNELS    2                           //Ears are Stereo
 #define SILENCE             0.0f
 #define NUM_EFFECTS         12                          //Chosen arbitrarily, will likely rise
+#define SMTHER_ATCK_MS		10
 
 typedef void (*prcs_function)(effects_engine*, float* , float*, int);
 

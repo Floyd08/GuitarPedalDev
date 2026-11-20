@@ -11,6 +11,7 @@
 
 #define		NUM_AIAA_FILTERS		4
 #define		AI_AA_Q_VALUES			{ 0.5098f, 0.6013f, 0.9000f, 2.5629f }
+#define		SMTHER_EPSILON			1e-3f
 
 /*----------------------------------------------------------------------------------------------*/
 // dB to linear gain conversions
@@ -21,6 +22,7 @@
 #define		minus_20dB				0.1000
 #define		minus_15dB				0.1778
 #define		minus_12dB				0.2512
+#define		minus_9dB				0.3548
 #define		minus_6dB				0.5012
 #define		minus_3dB				0.7079
 #define		_0dB					1.0000
@@ -41,6 +43,15 @@ typedef struct {
 	float release_alpha;
 	
 } envelope_follower;
+
+typedef struct {
+
+	float state;
+	float attack_ms;
+	float attack_alpha;
+	float complement_coeff;
+
+} smoother;
 
 // a set of biquad filters, used to filter for imaging and aliasing
 typedef struct {
@@ -93,6 +104,9 @@ void process_envelope_follower(envelope_follower* e_fol, float sample);
 void set_env_attack(envelope_follower* e_fol, float new_attack_time, int sample_rate);
 void set_env_release(envelope_follower* e_fol, float new_release_time, int sample_rate);
 
+void smoother_init(smoother* sm, float init_value, float attack_ms, int sample_rate);
+void process_smoother(smoother* sm, float target_value);
+void set_smoother_attack(smoother* sm, float attack_ms, int sample_rate);
 
 int r_buffer_init(ring_buffer* r_buffer, unsigned int size);
 void r_buffer_free(ring_buffer* buffer);
