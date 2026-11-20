@@ -33,16 +33,27 @@
 #define		POWER_CATCHUP			0.005			// 5ms
 
 enum {
-	// AMP_CTRL_GAIN,
-	AMP_CTRL_DRVE,
-	AMP_CTRL_BASS,
-	AMP_CTRL_MID,
-	AMP_CTRL_MID_SWP,
-	AMP_CTRL_TRBL,
-	AMP_CTRL_LVL,
-	AMP_NUM_CONTROLS
+	// COMBO_AMP_CTRL_GAIN,
+	COMBO_AMP_CTRL_DRVE,
+	COMBO_AMP_CTRL_BASS,
+	COMBO_AMP_CTRL_MID,
+	COMBO_AMP_CTRL_MID_SWP,
+	COMBO_AMP_CTRL_TRBL,
+	COMBO_AMP_CTRL_LVL,
+	COMBO_AMP_NUM_CONTROLS
 };
-extern const ControlDef amp_model_controls[AMP_NUM_CONTROLS];
+extern const ControlDef combo_amp_controls[COMBO_AMP_NUM_CONTROLS];
+
+enum {
+	AMP_HEAD_CTRL_DRVE,
+	AMP_HEAD_CTRL_BASS,
+	AMP_HEAD_CTRL_MID,
+	AMP_HEAD_CTRL_MID_SWP,
+	AMP_HEAD_CTRL_TRBL,
+	AMP_HEAD_CTRL_LVL,
+	AMP_HEAD_NUM_CONTROLS
+};
+extern const ControlDef amp_head_controls[AMP_HEAD_NUM_CONTROLS];
 
 typedef struct {
 
@@ -114,6 +125,23 @@ typedef struct {
 
 } amp_model;
 
+typedef struct {
+
+	effects_engine base;		// included to imitate a supertype
+	pre_amp pr_amp;				// models gain staging, tone stack, and filtering
+	int sample_rate;			//sample rate of the callback function
+
+} amp_head;
+
+typedef struct {
+
+	effects_engine base;		// included to imitate a supertype
+	power_amp pw_amp;			// models power amp sag, clipping based on simulated load
+	filter_cab cab;				// A chain of biquad filters configured to simulate a guitar ampspeaker
+
+} amp_cab;
+
+// Sub modules
 void tone_stack_init(tone_stack* tone, int sample_rate);
 float process_tone_stack(tone_stack* tone, float sample);
 void pre_amp_init(pre_amp* pre_amp, int sample_rate, int buffer_size);
@@ -123,9 +151,15 @@ void process_power_amp(power_amp* p_amp, float *in_buf, float *out_buf, int buff
 void filter_cab_init(filter_cab* cab, int sample_rate);
 void process_filter_cab(filter_cab* cab, float *in_buf, float *out_buf, int buffer_size);
 
+// combo amp and head/cab 
 void amp_model_init(amp_model* a_mod, int sample_rate, int buffer_size);
 void process_amp_model(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size);
+void amp_head_init(amp_head* a_head, int sample_rate, int buffer_size);
+void process_amp_head(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size);
+void amp_cab_init(amp_cab* a_cab, int sample_rate);
+void process_amp_cab(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size);
 
+// combo amp update functions
 float set_preamp_gain(effects_engine* engine, float gain);
 float set_preamp_drive(effects_engine* engine, float gain);
 float set_preamp_level(effects_engine* engine, float level);
@@ -133,5 +167,14 @@ float set_preamp_bass(effects_engine* engine, float bass);
 float set_preamp_mid(effects_engine* engine, float mid);
 float set_preamp_treble(effects_engine* engine, float treble);
 float set_preamp_mid_centre(effects_engine* engine, float centre);
+
+// amp head update functions
+float set_amp_head_gain(effects_engine* engine, float gain);
+float set_amp_head_drive(effects_engine* engine, float drive);
+float set_amp_head_level(effects_engine* engine, float level);
+float set_amp_head_bass(effects_engine* engine, float bass);
+float set_amp_head_mid(effects_engine* engine, float mid);
+float set_amp_head_treble(effects_engine* engine, float treble);
+float set_amp_head_mid_centre(effects_engine* engine, float centre);
 
 #endif

@@ -197,6 +197,10 @@ int main(void) {
     
     amp_model a_mod;
     amp_model_init(&a_mod, SAMPLE_RATE, FRAMES_PER_BUFFER);
+    amp_head a_head;
+    amp_head_init(&a_head, SAMPLE_RATE, FRAMES_PER_BUFFER);
+    amp_cab a_cab;
+    amp_cab_init(&a_cab, SAMPLE_RATE);
     master_effects_engine master_engine;
     master_effects_init(&master_engine, FRAMES_PER_BUFFER);
 
@@ -208,15 +212,17 @@ int main(void) {
     append_ers[1] = fx_chain_append(&chain, &d_engine.base, process_distortion);
     // append_ers[2] = fx_chain_append(&chain, &eq_engine.base, process_EQ);
     // append_ers[3] = fx_chain_append(&chain, &b_engine.base, process_bitcrush);
-    // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_chorus);
-    // append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_flanger);
-    append_ers[4] = fx_chain_append(&chain, &m_engine.base, process_phaser);
-    // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_series_ap_reverb);
-    // append_ers[5] = fx_chain_append(&chain, &r_engine.base, process_freeverb);
-    // append_ers[6] = fx_chain_append(&chain, &dl_engine.base, process_delay);
-    // append_ers[6] = fx_chain_append(&chain, &a_engine.base, process_tremolo);
-    append_ers[6] = fx_chain_append(&chain, &a_engine.base, process_harmonic_tremolo);
-    append_ers[10] = fx_chain_append(&chain, &a_mod.base, process_amp_model);
+    append_ers[4] = fx_chain_append(&chain, &a_head.base, process_amp_head);
+    // append_ers[5] = fx_chain_append(&chain, &m_engine.base, process_chorus);
+    // append_ers[5] = fx_chain_append(&chain, &m_engine.base, process_flanger);
+    append_ers[5] = fx_chain_append(&chain, &m_engine.base, process_phaser);
+    // append_ers[6] = fx_chain_append(&chain, &r_engine.base, process_series_ap_reverb);
+    // append_ers[6] = fx_chain_append(&chain, &r_engine.base, process_freeverb);
+    // append_ers[7] = fx_chain_append(&chain, &dl_engine.base, process_delay);
+    // append_ers[7] = fx_chain_append(&chain, &a_engine.base, process_tremolo);
+    append_ers[7] = fx_chain_append(&chain, &a_engine.base, process_harmonic_tremolo);
+    append_ers[10] = fx_chain_append(&chain, &a_cab.base, process_amp_cab);
+    // append_ers[10] = fx_chain_append(&chain, &a_mod.base, process_amp_model);
     append_ers[11] = fx_chain_append(&chain, &master_engine.base, process_master_volume);
     
     
