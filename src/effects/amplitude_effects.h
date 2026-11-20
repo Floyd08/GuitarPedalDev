@@ -29,6 +29,7 @@ enum {
 	TRM_CTRL_RATE,
 	TRM_CTRL_DEPTH,
 	TRM_CTRL_WET,
+	TRM_CTRL_BYPASS,
 	TRM_NUM_CONTROLS
 };
 extern const ControlDef tremolo_controls[TRM_NUM_CONTROLS];
@@ -41,6 +42,7 @@ typedef struct {
 	float rate;							// In Hz
 	float depth;						// in dB
 	float wet;							// straight control factor
+	float bypass;
 	int sample_rate;
 
 } tremolo_amplitude_engine;
@@ -55,6 +57,7 @@ typedef struct {
 	float rate;							// In Hz
 	float depth;						// in dB
 	float wet;							// straight control factor
+	float bypass;
 	int sample_rate;
 
 } harmonic_trem_amplitude_engine;
@@ -71,10 +74,12 @@ void process_harmonic_tremolo(effects_engine* engine, float* in_buf, float* out_
 float set_tremolo_rate(effects_engine* engine, float rate);
 float set_tremolo_depth(effects_engine* engine, float depth);
 float set_tremolo_wet(effects_engine* engine, float wet);
+float set_tremolo_bypass(effects_engine* engine, float bypass);
 
 // harmonic tremollo control functions
 float set_harmonic_trem_rate(effects_engine* engine, float rate);
 float set_harmonic_trem_depth(effects_engine* engine, float depth);
 float set_harmonic_trem_wet(effects_engine* engine, float wet);
+float set_harmonic_trem_bypass(effects_engine* engine, float bypass);
 
 #endif

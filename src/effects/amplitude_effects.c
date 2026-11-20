@@ -4,15 +4,15 @@
 const ControlDef tremolo_controls[TRM_NUM_CONTROLS] = {
 	[TRM_CTRL_RATE] = {.name = "trm_rate", .label = "Rate", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_RATE_SET, .update_func = set_tremolo_rate, .units = "Hz" },
 	[TRM_CTRL_DEPTH] = {.name = "trm_depth", .label = "Depth", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_DEPTH_SET, .update_func = set_tremolo_depth, .units = "dB" },
-	[TRM_CTRL_WET] = {.name = "trm_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_WET_SET, .update_func = set_tremolo_wet, .units = "" }
-
+	[TRM_CTRL_WET] = {.name = "trm_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_WET_SET, .update_func = set_tremolo_wet, .units = "" },
+	[TRM_CTRL_BYPASS] = { .name = "trm_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = AMPLITUDE_ROW_NUM, .default_value = OFF, .update_func = set_tremolo_bypass, .units = "" }
 };
 
 const ControlDef harmonic_tremolo_controls[TRM_NUM_CONTROLS] = {
 	[TRM_CTRL_RATE] = {.name = "trm_rate", .label = "Rate", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_RATE_SET, .update_func = set_harmonic_trem_rate, .units = "Hz" },
 	[TRM_CTRL_DEPTH] = {.name = "trm_depth", .label = "Depth", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_DEPTH_SET, .update_func = set_harmonic_trem_depth, .units = "dB" },
-	[TRM_CTRL_WET] = {.name = "trm_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_WET_SET, .update_func = set_harmonic_trem_wet, .units = "" }
-
+	[TRM_CTRL_WET] = {.name = "trm_wet", .label = "Dry/Wet", .type = CTRL_KNOB, .row = AMPLITUDE_ROW_NUM, .default_value = DFLT_TRM_WET_SET, .update_func = set_harmonic_trem_wet, .units = "" },
+	[TRM_CTRL_BYPASS] = { .name = "trm_bypass", .label = "Bypass", .type = CTRL_SWITCH, .row = AMPLITUDE_ROW_NUM, .default_value = OFF, .update_func = set_harmonic_trem_bypass, .units = "" }
 };
 
 // classic tremolo functions
@@ -35,6 +35,10 @@ void tremolo_amplitude_init(tremolo_amplitude_engine* a_engine, int sample_rate)
 void process_tremolo(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size) {
 
 	tremolo_amplitude_engine* a_engine = (tremolo_amplitude_engine*) engine;
+
+	if (a_engine->bypass == 0) {
+		return;
+	}
 
 	float dry_sig, wet_sig, mod, gain, dry_level, output;
 
@@ -77,6 +81,10 @@ void harmonic_tremolo_amplitude_init(harmonic_trem_amplitude_engine* a_engine, i
 void process_harmonic_tremolo(effects_engine* engine, float* in_buf, float* out_buf, int buffer_size) {
 
 	harmonic_trem_amplitude_engine* a_engine = (harmonic_trem_amplitude_engine*) engine;
+
+	if (a_engine->bypass == 0) {
+		return;
+	}
 
 	float dry_sig, wet_sig, bass, treble, mod, bass_gain, treble_gain, dry_level, output;
 
@@ -136,6 +144,16 @@ float set_tremolo_wet(effects_engine* engine, float wet) {
 	return wet;
 }
 
+float set_tremolo_bypass(effects_engine* engine, float bypass) {
+
+	tremolo_amplitude_engine* a_engine = (tremolo_amplitude_engine*) engine;
+
+	int new_bypass = (int)bypass;
+	a_engine->bypass = new_bypass;
+
+	return new_bypass;
+}
+
 // classic tremollo control functions
 float set_harmonic_trem_rate(effects_engine* engine, float rate) {
 
@@ -166,4 +184,14 @@ float set_harmonic_trem_wet(effects_engine* engine, float wet) {
 	a_engine->wet = wet;
 
 	return wet;
+}
+
+float set_harmonic_trem_bypass(effects_engine* engine, float bypass) {
+
+	harmonic_trem_amplitude_engine* a_engine = (harmonic_trem_amplitude_engine*) engine;
+
+	int new_bypass = (int)bypass;
+	a_engine->bypass = new_bypass;
+
+	return new_bypass;
 }
