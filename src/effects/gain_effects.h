@@ -1,5 +1,5 @@
-#ifndef DISTORTION_FX_H
-#define DISTORTION_FX_H
+#ifndef GAIN_FX_H
+#define GAIN_FX_H
 
 #include "Biquad.h"
 #include "effects_engine.h"

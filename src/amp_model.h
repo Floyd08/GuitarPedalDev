@@ -3,7 +3,7 @@
 
 #include "dsp_tools.h"
 #include "effects_engine.h"
-#include "distortion_effects.h"
+#include "gain_effects.h"
 
 #define		DFLT_BASS_FREQ			200
 #define		DFLT_TREBLE_FREQ		3000

@@ -11,7 +11,7 @@
 #include "scope_tap.h"
 #include "dsp_tools.h"
 #include "master_effects.h"
-#include "distortion_effects.h"
+#include "gain_effects.h"
 #include "EQ_effects.h"
 #include "compressor_effects.h"
 #include "amplitude_effects.h"

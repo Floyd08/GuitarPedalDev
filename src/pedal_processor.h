@@ -1,5 +1,5 @@
 #include "effects_engine.h"
-#include "distortion_effects.h"
+#include "gain_effects.h"
 
 #define SAMPLE_RATE			48000
 #define FRAMES_PER_BUFFER	128

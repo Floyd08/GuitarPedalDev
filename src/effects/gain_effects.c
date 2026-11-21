@@ -6,7 +6,7 @@
 #include "Biquad.h"
 #include "control_def.h"
 #include "effects_engine.h"
-#include "distortion_effects.h"
+#include "gain_effects.h"
 
 //The controls this module offers to the UI. ui_listener registers this table, and the UI builds itself from it
 //Rows are relative to this module (0 is its first row). Names must be unique across ALL modules
