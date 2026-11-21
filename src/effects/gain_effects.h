@@ -59,6 +59,8 @@ typedef struct {
 	int control_stages[3];				// Holds the indices of the stage a control points to
 	int up_factor;						// A multiple for upsampling. an value less than 2 will skip upsampling(and alias filtering) altogether
 	float* oversampling_buffer;			// A pointer to a larger float buffer. It's size is buffer_size * up_factor
+	float dry;							// The dry signal running parallel to the gain stages
+	float damp;							// A working variable. Stages can pass a value into this, and it can be picked up by a later stage
 	int bypass;
 
 	int buffer_size;					// The size of the buffer used by the audio stream(not for oversampling)

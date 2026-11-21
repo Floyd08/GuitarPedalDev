@@ -50,51 +50,6 @@ void distortion_stage_init(distortion_stage* d_stage, biquad** pre_filters, int 
 	d_stage->num_post_filters = num_post_filters;
 }
 
-//Parameter getting and setting
-float set_distort_gain (effects_engine* engine, float gain) {
-
-	distortion_engine* d_engine = (distortion_engine*)engine;
-
-	//float converted_gain = expf(gain * 3.41);
-	float converted_gain = convert_to_range_exp(gain, minus_3dB, plus_30dB);
-	int stage_index = d_engine->control_stages[0];
-	d_engine->d_stages[stage_index]->gain = converted_gain;
-
-	return linear_gain_to_decibels(converted_gain);
-}
-
-float set_distort_bias (effects_engine* engine, float bias) {
-
-	distortion_engine* d_engine = (distortion_engine*)engine;
-
-	// value * (new_max - new_min) + new_min		->		max 1 and min -1, gets us to 2 -1
-	float new_bias = (bias * 2) - 1;				
-	int stage_index = d_engine->control_stages[1];
-	d_engine->d_stages[stage_index]->bias = new_bias;
-
-	return new_bias;
-}
-
-float set_distort_wet_mix (effects_engine* engine, float wet) {
-
-	distortion_engine* d_engine = (distortion_engine*)engine;
-	
-	int stage_index = d_engine->control_stages[2];
-	d_engine->d_stages[stage_index]->dstr_wet = wet;
-
-	return wet;
-}
-
-float set_distort_bypass(effects_engine* engine, float bypass) {
-
-	distortion_engine* d_engine = (distortion_engine*)engine;
-
-	int new_bypass = (int)bypass;
-	d_engine->bypass = new_bypass;
-
-	return new_bypass;
-}
-
 void process_distortion(effects_engine* engine, float *in_buf, float *out_buf, int buffer_size) {
 
 	distortion_engine* d_engine = (distortion_engine*)engine;
@@ -103,13 +58,15 @@ void process_distortion(effects_engine* engine, float *in_buf, float *out_buf, i
 		return;
 	}
 
-	float sample;
+	float sample, dry_sig, damp_sig;
 
 	if (d_engine->up_factor < 2) {
 
 		for(int i = 0, j = 0; i < d_engine->buffer_size; i++) {
 			
 			sample = in_buf[i];
+			d_engine->dry = sample;
+			d_engine->damp = sample;
 			for (int n = 0; n < d_engine->num_stages; n++) {
 				//call the nth distortion_stage to process the ith sample
 				sample = process_distort_stage(d_engine->d_stages[n], sample);
@@ -125,6 +82,8 @@ void process_distortion(effects_engine* engine, float *in_buf, float *out_buf, i
 		for(int i = 0, j = 0; i < oversampling_buffer_length; i++) {
 			
 			sample = d_engine->oversampling_buffer[i];
+			d_engine->dry = sample;
+			d_engine->damp = sample;
 			sample = bq_process(d_engine->image_filter, sample);							// anti-imaging filter smooths the signal
 			sample  = sample * d_engine->up_factor;											// compensate for gain loss
 			
@@ -203,6 +162,53 @@ void distortion_stage_free(distortion_stage* d_stage) {
 	free(d_stage);
 }
 
+
+//Update functions
+float set_distort_gain (effects_engine* engine, float gain) {
+
+	distortion_engine* d_engine = (distortion_engine*)engine;
+
+	//float converted_gain = expf(gain * 3.41);
+	float converted_gain = convert_to_range_exp(gain, minus_3dB, plus_30dB);
+	int stage_index = d_engine->control_stages[0];
+	d_engine->d_stages[stage_index]->gain = converted_gain;
+
+	return linear_gain_to_decibels(converted_gain);
+}
+
+float set_distort_bias (effects_engine* engine, float bias) {
+
+	distortion_engine* d_engine = (distortion_engine*)engine;
+
+	// value * (new_max - new_min) + new_min		->		max 1 and min -1, gets us to 2 -1
+	float new_bias = (bias * 2) - 1;				
+	int stage_index = d_engine->control_stages[1];
+	d_engine->d_stages[stage_index]->bias = new_bias;
+
+	return new_bias;
+}
+
+float set_distort_wet_mix (effects_engine* engine, float wet) {
+
+	distortion_engine* d_engine = (distortion_engine*)engine;
+	
+	int stage_index = d_engine->control_stages[2];
+	d_engine->d_stages[stage_index]->dstr_wet = wet;
+
+	return wet;
+}
+
+float set_distort_bypass(effects_engine* engine, float bypass) {
+
+	distortion_engine* d_engine = (distortion_engine*)engine;
+
+	int new_bypass = (int)bypass;
+	d_engine->bypass = new_bypass;
+
+	return new_bypass;
+}
+
+
 //Wave shaping functions, processed sample-by-sample
 float soft_knee_distortion(float sample) {
 	
@@ -278,6 +284,7 @@ float soft_rectify(float sample, float knee) {
 	return rect;
 }
 
+// These aren't valid distortion_effect_bysample functions, but they are preserved here for experimentation
 float atanhf_clipping(float gain, float signal) {
 
 	//Next three lines were suggested by Claude, because atanhf can give Nan/Inf results when the input is outside -1 - 1
