@@ -145,7 +145,7 @@ void alias_filter_process_gc(biquad* alias_filter, int buffer_size, float* upsam
 
 void ai_aa_filter_init(ai_aa_filter* filter, int oversample_rate, int sample_rate);
 float process_aiaa_filter(ai_aa_filter* filter, float sample);
-
+// need a free fucntion for ai_aa_filters
 
 void upsample(float* input_buf, int buffer_size, float* upsampled_buf, int upsample_factor);
 void downsample_mono(float* upsampled_buf, int upsample_factor, float* output_buf, int buffer_size);

@@ -1,6 +1,6 @@
 #include <math.h>
 #include "reverb_effects.h"
-#include "distortion_effects.h"
+// #include "gain_effects.h"
 
 const ControlDef series_ap_reverb_controls[S5_RVRB_NUM_CONTROLS] = {
 	[S5_RVRB_CTRL_VERB] = {.name = "s5_rvrb_verb", .label = "Verb", .type = CTRL_KNOB, .row = VERB_ROW_NUM, .default_value = DFLT_VERB_WET, .update_func = set_sap_rvrb_wet_mix, .units = "" },

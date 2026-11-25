@@ -1,5 +1,4 @@
 #include "effects_engine.h"
-#include "gain_effects.h"
 
 #define SAMPLE_RATE			48000
 #define FRAMES_PER_BUFFER	128
@@ -9,11 +8,9 @@
 #define NUM_EFFECTS         12                          //Chosen arbitrarily, will likely rise
 #define SMTHER_ATCK_MS		10
 
-typedef void (*prcs_function)(effects_engine*, float* , float*, int);
-
 typedef struct {
 
-	effects_engine* engine;								// The effects object needed by the processing function
+	effects_engine* engine;							// The effects object needed by the processing function
 	prcs_function process_func;						// The processing function itself
 
 } fx_module;

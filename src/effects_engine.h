@@ -3,6 +3,8 @@
 
 #include "control_def.h"
 
+typedef void (*prcs_function)(effects_engine*, float* , float*, int);
+
 struct effects_engine {
 
 	const char* name;

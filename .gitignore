@@ -19,5 +19,7 @@ src/analysis/scope_tap-old.c
 src/analysis/scope_tap-old.h
 *.o
 pedal_processor.exe 
+*.exe
+*.dll
  
  
