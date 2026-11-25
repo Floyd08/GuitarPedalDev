@@ -23,5 +23,6 @@ src/analysis/scope_tap-old.h
 pedal_processor.exe 
 *.exe
 *.dll
+build/
  
  

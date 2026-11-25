@@ -1,0 +1,33 @@
+CC = gcc
+CFLAGS = -Wall -Wextra -Iextensions/portaudio/include -Iextensions/portaudio/src/common $(shell pkg-config --cflags sdl2)
+LDFLAGS = -Lextensions/portaudio/build
+LDLIBS = -lportaudio -lwinmm -lole32 -luuid -lsetupapi $(shell pkg-config --libs sdl2)
+
+PA_DIR = extensions/portaudio
+PA_BUILD_DIR = $(PA_DIR)/build
+PA_LIB = $(PA_BUILD_DIR)/libportaudio.a
+RINGBUFFER_SRC = $(PA_DIR)/src/common/pa_ringbuffer.c
+
+#SRC = src/list_audio_devices.c
+SRC = src/scope.c
+#SRC = src/passthrough.c
+#TARGET =list_audio.exe
+TARGET = scope.exe
+#TARGET = passthrough.exe
+
+.PHONY: all clean clean-pa
+
+all: $(TARGET)
+
+$(TARGET): $(SRC) $(PA_LIB)
+	$(CC) $(CFLAGS) $(SRC) $(RINGBUFFER_SRC) $(LDFLAGS) $(LDLIBS) -o $(TARGET)
+
+$(PA_LIB):
+	cmake -S $(PA_DIR) -B $(PA_BUILD_DIR) -G "MinGW Makefiles"
+	cmake --build $(PA_BUILD_DIR)
+
+clean:
+	rm -f $(TARGET)
+
+clean-pa:
+	rm -rf $(PA_BUILD_DIR)

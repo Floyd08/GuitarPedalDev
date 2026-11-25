@@ -1,0 +1,14 @@
+cmake_minimum_required(VERSION 3.20)
+
+
+project(util_tests LANGUAGES C)
+
+
+add_library(dsplib STATIC)
+target_sources(dsplib PRIVATE extensions/BiquadFilter/Biquad.c extensions/BiquadFilter/one_pole.c src/util/dsp_tools.c)
+target_include_directories(dsplib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extensions/BiquadFilter ${CMAKE_CURRENT_SOURCE_DIR}/src/util)
+
+
+add_executable(util_tests)
+target_sources(util_tests PRIVATE src/util/util_tests.c)
+target_link_libraries(util_tests PRIVATE dsplib)
