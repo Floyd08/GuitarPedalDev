@@ -2,8 +2,10 @@
 
 Procedural stuff.txt
 ignore.txt
+.vscode
 scope.exe
 extensions/tube_preamp
+extensions/portaudio
 src/AC30
 src/ui/*
 !src/ui/control_panel.py
