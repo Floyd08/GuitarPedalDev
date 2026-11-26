@@ -9,7 +9,7 @@ You can build this with the following two CMake commands:
 	cmake -S . -B build -G "MinGW Makefiles"
 	cmake --build build
 
-That should give you pedal_processor.exe, which should run on any windows machine. The Audio interface is still hard-coded though, so if you do not have a Motu M2 plugged in, you would need to edit the device name in pedal_processor.c. This happens at the top of main. In a futreu update I do plan to make interface selection a command line arguement, so you can run this with what you have.
+That should give you pedal_processor.exe, which should run on any Windows machine. The Audio interface is still hard-coded though, so if you do not have a Motu M2 plugged in, you would need to edit the device name in pedal_processor.c. This happens at the top of main. In a future update I do plan to make interface selection a command line arguement, so you can run this with what you have.
 
 In src/util you will find a source file "list_audio_device.c" If you compile and run this, you should see a list of ever audio device detected by Port Audio, and you should find the info you need to set your Audio interface in that list.
 
