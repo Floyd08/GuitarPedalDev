@@ -7,7 +7,7 @@ PA_DIR = extensions/portaudio
 PA_BUILD_DIR = $(PA_DIR)/build
 PA_LIB = $(PA_BUILD_DIR)/libportaudio.a
 
-SRC = src/pedal_processor.c src/ui/ui_listener.c src/analysis/scope_tap.c src/effects_engine.c src/amp_model.c $(wildcard src/effects/*.c) src/util/dsp_tools.c extensions/BiquadFilter/one_pole.c extensions/BiquadFilter/Biquad.c
+SRC = src/pedal_processor.c src/fx_chain.c src/ui/ui_listener.c src/analysis/scope_tap.c src/effects_engine.c src/amp_model.c $(wildcard src/effects/*.c) src/util/dsp_tools.c src/util/test_signals.c extensions/BiquadFilter/one_pole.c extensions/BiquadFilter/Biquad.c
 TARGET = pedal_processor.exe
 
 .PHONY: all clean clean-pa

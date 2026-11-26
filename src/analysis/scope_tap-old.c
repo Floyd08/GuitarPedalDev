@@ -37,8 +37,13 @@ enum {
 	SCOPE_GEN_OFF,
 	SCOPE_GEN_SINE,
 	SCOPE_GEN_WHITE,                            // white noise: the same energy at every frequency
-	SCOPE_GEN_PINK                              // pink noise: the same energy in every octave, which is closer to music
+	SCOPE_GEN_PINK,                             // pink noise: the same energy in every octave, which is closer to music
+	SCOPE_GEN_SWEEP                             // a sine that glides from SCOPE_SWEEP_START up to SCOPE_SWEEP_END, then starts again
 };
+
+#define SCOPE_SWEEP_START       20.0            // Hz. Where the sweep starts
+#define SCOPE_SWEEP_END         20000.0         // Hz. Where it ends (or 0.45 x the sample rate, if that is lower)
+#define SCOPE_SWEEP_DEFAULT_S   10.0f           // How long one sweep takes, if the command doesn't say
 
 // One ring buffer per channel. Each has exactly one writer (the audio callback) and one
 // reader (the sender thread), which is what lets it work without a lock:
@@ -68,6 +73,7 @@ static int g_scope_sample_rate = 0;             // passed on to the scope in eve
 static _Atomic int g_gen_type = SCOPE_GEN_OFF;
 static _Atomic float g_gen_freq = 1000.0f;      // Hz. Only the sine uses it
 static _Atomic float g_gen_gain = 0.1f;         // linear. The peak of the sine, and (near enough) of the noise
+static _Atomic float g_gen_sweep_s = SCOPE_SWEEP_DEFAULT_S;    // seconds. How long one sweep takes
 
 //The test signal's state. Only the callback thread touches these, so they need no atomics
 static int g_gen_playing = SCOPE_GEN_OFF;       // what is sounding now. It outlives g_gen_type by the length of the fade out
@@ -75,6 +81,7 @@ static float g_gen_level = 0.0f;                // the gain actually applied, wh
 static double g_gen_phase = 0.0;                // where the sine is in its cycle, 0.0 to 1.0
 static uint32_t g_gen_random = 0x2545F491u;     // the noise generator's state. Must never be 0
 static float g_gen_pink[3];                     // the pink noise filter's state
+static double g_gen_sweep_freq = SCOPE_SWEEP_START;    // the sweep's frequency right now, in Hz
 
 // The audio callback's side
 // Copies a block into the channel's ring buffer. No locks, no system calls
@@ -130,6 +137,9 @@ int scope_test_signal(float *samples, int count) {
 	float target = 0.0f;
 	if (type != SCOPE_GEN_OFF) {
 		target = atomic_load_explicit(&g_gen_gain, memory_order_relaxed);
+		if (type == SCOPE_GEN_SWEEP && g_gen_playing != SCOPE_GEN_SWEEP) {
+			g_gen_sweep_freq = SCOPE_SWEEP_START;   // a new sweep starts at the bottom
+		}
 		g_gen_playing = type;
 	}
 	if (g_gen_playing == SCOPE_GEN_OFF) {
@@ -145,13 +155,33 @@ int scope_test_signal(float *samples, int count) {
 	float glide = 1.0f - expf(-1.0f / (rate * 0.001f * SCOPE_GEN_FADE_MS));     // the same one-pole smoothing as the envelope follower
 	double step = (double)atomic_load_explicit(&g_gen_freq, memory_order_relaxed) / (double)rate;
 
+	//The sweep is logarithmic: every sample, the frequency is multiplied by the same small amount,
+	//so each octave takes the same time. glide_ratio is that amount
+	double sweep_end = SCOPE_SWEEP_END;
+	if (sweep_end > 0.45 * rate) {
+		sweep_end = 0.45 * rate;
+	}
+	double sweep_samples = (double)atomic_load_explicit(&g_gen_sweep_s, memory_order_relaxed) * rate;
+	double glide_ratio = pow(sweep_end / SCOPE_SWEEP_START, 1.0 / sweep_samples);
+
 	for (int i = 0; i < count; i++) {
 
 		float value;
-		if (g_gen_playing == SCOPE_GEN_SINE) {
+		if (g_gen_playing == SCOPE_GEN_SINE || g_gen_playing == SCOPE_GEN_SWEEP) {
 			//Done in double precision so the sine's own distortion (about -150 dB) is far below anything being measured
 			value = (float)sin(SCOPE_TWO_PI * g_gen_phase);
-			g_gen_phase += step;
+			if (g_gen_playing == SCOPE_GEN_SWEEP) {
+				//The phase carries on smoothly as the frequency changes, so the sweep never clicks,
+				//not even when it jumps from the top back to the bottom
+				g_gen_phase += g_gen_sweep_freq / rate;
+				g_gen_sweep_freq *= glide_ratio;
+				if (g_gen_sweep_freq >= sweep_end) {
+					g_gen_sweep_freq = SCOPE_SWEEP_START;
+				}
+			}
+			else {
+				g_gen_phase += step;
+			}
 			if (g_gen_phase >= 1.0) {
 				g_gen_phase -= 1.0;
 			}
@@ -230,11 +260,12 @@ static int scope_parse_command(const char *message) {
 
 	char name[16];
 	float freq, level_db;
+	float sweep_s = SCOPE_SWEEP_DEFAULT_S;      // the 4th field is optional
 
-	if (sscanf(message, "gen %15s %f %f", name, &freq, &level_db) != 3) {
+	if (sscanf(message, "gen %15s %f %f %f", name, &freq, &level_db, &sweep_s) < 3) {
 		return 0;                               //message string is malformed, ignore it
 	}
-	if (!isfinite(freq) || !isfinite(level_db)) {
+	if (!isfinite(freq) || !isfinite(level_db) || !isfinite(sweep_s)) {
 		return 0;                               //check for NaN or infinite values
 	}
 
@@ -243,6 +274,7 @@ static int scope_parse_command(const char *message) {
 	else if (strcmp(name, "sine") == 0)  { type = SCOPE_GEN_SINE; }
 	else if (strcmp(name, "white") == 0) { type = SCOPE_GEN_WHITE; }
 	else if (strcmp(name, "pink") == 0)  { type = SCOPE_GEN_PINK; }
+	else if (strcmp(name, "sweep") == 0) { type = SCOPE_GEN_SWEEP; }
 	else {
 		return 0;                               //not a type we know
 	}
@@ -261,10 +293,17 @@ static int scope_parse_command(const char *message) {
 	if (level_db < -120.0f) {
 		level_db = -120.0f;
 	}
+	if (sweep_s < 1.0f) {
+		sweep_s = 1.0f;
+	}
+	if (sweep_s > 300.0f) {
+		sweep_s = 300.0f;
+	}
 
 	//The type is stored last, so the generator never starts with the previous frequency or level
 	atomic_store_explicit(&g_gen_freq, freq, memory_order_relaxed);
 	atomic_store_explicit(&g_gen_gain, powf(10.0f, level_db / 20.0f), memory_order_relaxed);
+	atomic_store_explicit(&g_gen_sweep_s, sweep_s, memory_order_relaxed);
 	atomic_store_explicit(&g_gen_type, type, memory_order_relaxed);
 	return 1;
 }

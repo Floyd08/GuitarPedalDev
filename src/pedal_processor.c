@@ -6,10 +6,12 @@
 #include <portaudio.h>
 #include <pa_asio.h>
 #include "pedal_processor.h"
+#include "fx_chain.h"
 #include "control_def.h"
 #include "ui_listener.h"
 #include "scope_tap.h"
 #include "dsp_tools.h"
+#include "test_signals.h"
 #include "master_effects.h"
 #include "gain_effects.h"
 #include "EQ_effects.h"
@@ -32,6 +34,7 @@ effects_engine* e_points[MAX_CONTROLS];
 // control_index holds the last index of current_params checked for a change from the UI.
 // a loop in callback checks UPDATE_INTERVAL cached parameters against that same index in update_params
 int control_index = 0;
+float input_scratch[FRAMES_PER_BUFFER];
 
 static int callback(const void *input, void *output, unsigned long frame_count,
                      const PaStreamCallbackTimeInfo *time_info,
@@ -74,8 +77,8 @@ static int callback(const void *input, void *output, unsigned long frame_count,
         }
     }
     
-	//const float *in = (const float *)input;
-    float* in = (float*)input;
+	const float *in = (const float *)input;
+    // float* in = (float*)input;
     float* out = (float*)output;
 
     fx_chain* chain = (fx_chain*)user_data;
@@ -92,10 +95,19 @@ static int callback(const void *input, void *output, unsigned long frame_count,
 			}
 			return paContinue;
     }
+    memcpy(input_scratch, in, FRAMES_PER_BUFFER * sizeof(float) );
     
     //process the entire input buffer
     //passthrough_buffer(FRAMES_PER_BUFFER, in, out);
-    process_fx_chain(chain, in, out, FRAMES_PER_BUFFER);
+
+    // scope_test_signal(input_scratch, FRAMES_PER_BUFFER);
+    test_signal_process(input_scratch, FRAMES_PER_BUFFER);
+    scope_write(SCOPE_CH_A, input_scratch, FRAMES_PER_BUFFER);       // dry input signal
+
+    process_fx_chain(chain, input_scratch, out, FRAMES_PER_BUFFER);
+
+    scope_write(SCOPE_CH_B, out, FRAMES_PER_BUFFER);      // wet output signal
+    mono_to_stereo(out, FRAMES_PER_BUFFER);
 
     //Measures Latency
     QueryPerformanceCounter(&end);
@@ -206,9 +218,8 @@ int main(void) {
 
 
     // append the effects modules to the fx_chain
-    // control registration is handled by fx_chain_append
     int append_ers[NUM_EFFECTS] = {0};
-    // append_ers[0] = fx_chain_append(&chain, &c_engine.base, process_compressor);
+    append_ers[0] = fx_chain_append(&chain, &c_engine.base, process_compressor);
     append_ers[1] = fx_chain_append(&chain, &g_engine.base, process_gain);
     // append_ers[2] = fx_chain_append(&chain, &eq_engine.base, process_EQ);
     // append_ers[3] = fx_chain_append(&chain, &b_engine.base, process_bitcrush);
@@ -224,6 +235,18 @@ int main(void) {
     append_ers[10] = fx_chain_append(&chain, &a_cab.base, process_amp_cab);
     // append_ers[10] = fx_chain_append(&chain, &a_mod.base, process_amp_model);
     append_ers[11] = fx_chain_append(&chain, &master_engine.base, process_master_volume);
+
+    // control registration
+    int sig_chain_count = fx_chain_get_count(&chain);
+    //int control_reg_errs[NUM_EFFECTS] = {0};
+    for (int i = 0; i < sig_chain_count; i++) {
+
+        effects_engine* engine = fx_chain_get_module(&chain, i)->engine;
+        if (engine->num_controls > 0) {
+            // for nowwe discard the results for register controls, later we should probably log this
+            register_controls(engine);
+        }
+    }
     
     
     void* chain_ptr = &chain;
@@ -285,46 +308,6 @@ int main(void) {
     return 0;
 }
 
-void fx_chain_init(fx_chain* chain) {
-
-    chain->module_count = 0;
-}
-
-int fx_chain_append(fx_chain* chain, effects_engine* engine, prcs_function process_func) {
-
-    int ctrl_err;
-
-    if(chain->module_count >= NUM_EFFECTS || engine == NULL || process_func == NULL) {
-        return 1;
-    }
-
-    chain->slots[chain->module_count].engine = engine;
-    chain->slots[chain->module_count].process_func = process_func;
-    chain->module_count++;
-    if (engine->num_controls > 0) {
-        ctrl_err = register_controls(engine);
-    }
-
-    return ctrl_err;
-}
-
-void process_fx_chain(fx_chain* chain, float* in_buf, float* out_buf, int buffer_size) {
-
-    int m_num = chain->module_count, i = 0;
-    //printf("processing audio\n");
-    memcpy( out_buf, in_buf, buffer_size * sizeof(float) );
-    scope_test_signal(out_buf, buffer_size); 
-    scope_write(SCOPE_CH_A, out_buf, buffer_size);       // dry input signal
-
-    while (i < m_num) {
-        
-        chain->slots[i].process_func(chain->slots[i].engine, out_buf, out_buf, buffer_size);
-        i++;
-    }
-
-    scope_write(SCOPE_CH_B, out_buf, buffer_size);      // wet output signal
-    mono_to_stereo(out_buf, buffer_size);
-}
 
 float passthrough(float signal) {
 
@@ -345,21 +328,6 @@ void passthrough_buffer(int buf_size, float* in_buf, float* out_buf) {
     }
 }
 
-//takes the output buffer in a mono state. Works back through the array, duplicating the mono input
-void mono_to_stereo(float* out_buffer, int mono_size) {
-
-    int stereo_length = mono_size * 2;
-    int i = mono_size - 1, j = stereo_length - 1;       //set i to the index of the last mono sample in the buffer, set j to the last index of the buffer
-
-    while (i >= 0) {
-
-        out_buffer[j] = out_buffer[i];
-        j--;
-        out_buffer[j] = out_buffer[i];
-        j--; 
-        i--;
-    }
-}
 
 /*
 Dead simple distortion effect. Takes a drive value, and a sample. 

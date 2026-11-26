@@ -65,8 +65,12 @@ int register_controls(effects_engine* engine) {
 		fprintf(stderr, "register_controls: must be called before start_control_listener()\n");
 		return -1;
 	}
-	if (defs == NULL || count <= 0) {
-		fprintf(stderr, "register_controls: the control table is missing or empty\n");
+	if (defs == NULL && count == 0) {
+		fprintf(stderr, "register_controls: the control table is empty\n");
+		return 0;
+	}
+	if (defs == NULL) {
+		fprintf(stderr, "register_controls: the control table is missing\n");
 		return -1;
 	}
 	if (g_count + count > MAX_CONTROLS) {
