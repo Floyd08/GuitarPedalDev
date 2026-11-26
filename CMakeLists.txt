@@ -34,10 +34,10 @@ target_link_libraries(fx_core PUBLIC dsp_lib)
 target_compile_options(fx_core PRIVATE -Wall -Wextra)
 
 
-# add_executable(util_tests)
-# target_sources(util_tests PRIVATE src/util/util_tests.c)
-# target_link_libraries(util_tests PRIVATE dsplib)
-# target_compile_options(util_tests PRIVATE -Wall -Wextra)
+add_executable(util_tests)
+target_sources(util_tests PRIVATE src/util/util_tests.c)
+target_link_libraries(util_tests PRIVATE dsplib)
+target_compile_options(util_tests PRIVATE -Wall -Wextra)
 
 add_executable(pedal_processor)
 target_sources(pedal_processor PRIVATE src/pedal_processor.c src/ui/ui_listener.c src/analysis/scope_tap.c)
