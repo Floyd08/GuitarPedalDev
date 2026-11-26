@@ -28,8 +28,8 @@ void process_fx_chain(fx_chain* chain, const float* in_buf, float* out_buf, int 
     int m_num = chain->module_count, i = 0;
     //printf("processing audio\n");
     memcpy( out_buf, in_buf, buffer_size * sizeof(float) );
-    scope_test_signal(out_buf, buffer_size);
-    scope_write(SCOPE_CH_A, out_buf, buffer_size);       // dry input signal
+    // scope_test_signal(out_buf, buffer_size);
+    // scope_write(SCOPE_CH_A, out_buf, buffer_size);       // dry input signal
 
     while (i < m_num) {
 
@@ -37,8 +37,8 @@ void process_fx_chain(fx_chain* chain, const float* in_buf, float* out_buf, int 
         i++;
     }
 
-    scope_write(SCOPE_CH_B, out_buf, buffer_size);      // wet output signal
-    mono_to_stereo(out_buf, buffer_size);
+    // scope_write(SCOPE_CH_B, out_buf, buffer_size);      // wet output signal
+    // mono_to_stereo(out_buf, buffer_size);
 }
 
 fx_module* fx_chain_get_module(fx_chain* chain, int index) {

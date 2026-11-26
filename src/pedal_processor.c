@@ -33,6 +33,7 @@ effects_engine* e_points[MAX_CONTROLS];
 // control_index holds the last index of current_params checked for a change from the UI.
 // a loop in callback checks UPDATE_INTERVAL cached parameters against that same index in update_params
 int control_index = 0;
+float input_scratch[FRAMES_PER_BUFFER];
 
 static int callback(const void *input, void *output, unsigned long frame_count,
                      const PaStreamCallbackTimeInfo *time_info,
@@ -78,6 +79,7 @@ static int callback(const void *input, void *output, unsigned long frame_count,
 	//const float *in = (const float *)input;
     float* in = (float*)input;
     float* out = (float*)output;
+    memcpy(input_scratch, in, FRAMES_PER_BUFFER * sizeof(float) );
 
     fx_chain* chain = (fx_chain*)user_data;
 
@@ -96,7 +98,14 @@ static int callback(const void *input, void *output, unsigned long frame_count,
     
     //process the entire input buffer
     //passthrough_buffer(FRAMES_PER_BUFFER, in, out);
-    process_fx_chain(chain, in, out, FRAMES_PER_BUFFER);
+
+    scope_test_signal(input_scratch, FRAMES_PER_BUFFER);
+    scope_write(SCOPE_CH_A, input_scratch, FRAMES_PER_BUFFER);       // dry input signal
+
+    process_fx_chain(chain, input_scratch, out, FRAMES_PER_BUFFER);
+
+    scope_write(SCOPE_CH_B, out, FRAMES_PER_BUFFER);      // wet output signal
+    mono_to_stereo(out, FRAMES_PER_BUFFER);
 
     //Measures Latency
     QueryPerformanceCounter(&end);
