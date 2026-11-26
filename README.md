@@ -5,6 +5,7 @@ Right now, this project does nothing like this. What you will actually see is an
 
 # How to get started:
 You can build this with the following two CMake commands:
+	
 	cmake -S . -B build -G "MinGW Makefiles"
 	cmake --build build
 
