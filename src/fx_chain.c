@@ -12,8 +12,6 @@ void fx_chain_init(fx_chain* chain) {
 
 int fx_chain_append(fx_chain* chain, effects_engine* engine, prcs_function process_func) {
 
-    int ctrl_err = 0;                                   // stays 0 for modules with no controls
-
     if(chain->module_count >= NUM_EFFECTS || engine == NULL || process_func == NULL) {
         return 1;
     }
@@ -21,11 +19,8 @@ int fx_chain_append(fx_chain* chain, effects_engine* engine, prcs_function proce
     chain->slots[chain->module_count].engine = engine;
     chain->slots[chain->module_count].process_func = process_func;
     chain->module_count++;
-    // if (engine->num_controls > 0) {
-    //     ctrl_err = register_controls(engine);
-    // }
 
-    return ctrl_err;
+    return 0;
 }
 
 void process_fx_chain(fx_chain* chain, const float* in_buf, float* out_buf, int buffer_size) {
@@ -48,7 +43,7 @@ void process_fx_chain(fx_chain* chain, const float* in_buf, float* out_buf, int 
 
 fx_module* fx_chain_get_module(fx_chain* chain, int index) {
 
-	if (index < 0 || index > NUM_EFFECTS) {
+	if (index < 0 || index >= chain->module_count) {
 		fprintf(stderr, "get_module: index out of bounds\n");
 		return NULL;
 	}

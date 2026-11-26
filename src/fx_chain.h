@@ -5,7 +5,6 @@
 
 #define NUM_EFFECTS         12                          	// Chosen arbitrarily, will likely rise
 
-typedef int (*fx_engine_func)(effects_engine* engine);		// A function that takes an fx_engine, and returns an error code
 
 typedef struct {
 
