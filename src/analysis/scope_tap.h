@@ -17,10 +17,9 @@
 // frequency (the spectrum analyser). The frequency analysis is all done in the panel, so it
 // costs the audio thread nothing more than the oscilloscope does.
 //
-// The module can also play a test signal (a sine wave, a sweep or noise) in place of the input,
-// which is what frequency measurements really want: a sine shows up an effect's harmonics and
-// aliasing, a sweep shows aliasing at every frequency in one pass, and noise shows the
-// frequency response. The panel switches it on and off.
+// The panel can also switch on a test signal (a sine wave, a sweep or noise) in place of the
+// input. The generator itself lives in test_signals.c. This module only carries the panel's
+// commands to it, and switches it off if the panel goes quiet or the sender stops.
 
 #define SCOPE_PORT              9000            // The UDP port the scope panel listens on
 #define SCOPE_NUM_CHANNELS      2               // How many traces the scope can show
@@ -43,12 +42,12 @@
 // To look at one effect on its own, move the two scope_write() calls so they sit either
 // side of that effect's process function.
 //
-// To be able to use the test signal, add one more call, before the first scope_write():
-//     scope_test_signal(out_buf, buffer_size);            // overwrites the buffer, but only while the generator is on
+// To be able to use the test signal, add one more call (from test_signals.h), before the first scope_write():
+//     test_signal_process(out_buf, buffer_size);          // overwrites the buffer, but only while the generator is on
 //     scope_write(SCOPE_CH_A, out_buf, buffer_size);      // channel A now shows whichever signal went in
 
 // Creates the socket and starts the sender thread. sample_rate is passed on to the scope,
-// which needs it to turn samples into time.
+// which needs it to turn samples into time, and to the test signal generator (test_signal_init).
 // Returns 0 on success (or if it is already running) and -1 on failure.
 // Failing is not fatal to the audio side: scope_write() simply does nothing.
 // Call this before starting the audio stream.
@@ -71,29 +70,12 @@ void stop_scope_sender(void);
 // than making the audio thread wait.
 void scope_write(int channel, const float *samples, int count);
 
-// The test signal generator. Call it from the audio callback on the MONO buffer that feeds
-// the effects. While the generator is off (which it is until the panel turns it on) this does
-// nothing and returns 0, so the guitar passes as usual. While it is on, it REPLACES the
-// contents of the buffer with the test signal and returns 1.
-//
-// It fades in and out over a few milliseconds, so switching it never clicks.
-// It switches itself off if the panel stops talking to it (SCOPE_GEN_TIMEOUT_MS), so closing
-// the panel can never leave a tone playing. It is also off whenever the sender isn't running.
-// Lock-free, like scope_write().
-int scope_test_signal(float *samples, int count);
-
 // THE COMMANDS
 //
-// The panel controls the generator by sending a line of text back to the socket the samples
-// come from, in the same style as the UI listener's messages:
-//
-//     "gen sine 1000 -20"      type, frequency in Hz, level in dB (0 dB = a peak of 1.0)
-//     "gen sweep 0 -20 10"     the same, with an optional 4th field: how long a sweep takes, in seconds
-//
-// The type is off, sine, white, pink or sweep. The frequency only matters for a sine, but is
-// always sent. A sweep is a sine that glides from 20 Hz up to 20 kHz (logarithmically, so every
-// octave takes the same time), then starts again; the panel shows it best in its spectrogram.
-// The panel repeats the message once a second, and that is what keeps the generator on.
+// The panel controls the test signal by sending a line of text back to the socket the samples
+// come from. The sender thread hands each one to test_signal_command(); the commands themselves
+// are listed in test_signals.h. The panel repeats its message once a second, and that is what
+// keeps the generator on: if nothing valid arrives for SCOPE_GEN_TIMEOUT_MS, the sender switches it off.
 
 // THE WIRE FORMAT
 //

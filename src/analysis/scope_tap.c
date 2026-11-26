@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include <math.h>
 #include <stdatomic.h>
 #include "scope_tap.h"
+#include "test_signals.h"
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -27,23 +27,6 @@
                                                 // only delays the picture slightly; no samples are lost
 #define SCOPE_GEN_TIMEOUT_MS    3000            // The test signal switches off if the panel has sent no command for this long.
                                                 // The panel repeats its command every second, so this only happens if it has gone
-#define SCOPE_GEN_FADE_MS       5.0f            // How long the test signal takes to fade in and out
-#define SCOPE_TWO_PI            6.283185307179586
-#define SCOPE_PINK_SCALE        0.12f           // The pink noise filter's output peaks at about 8, measured over two minutes of
-                                                // noise. This brings the peaks back to about 1.0, to match the other signals
-
-// The kinds of test signal
-enum {
-	SCOPE_GEN_OFF,
-	SCOPE_GEN_SINE,
-	SCOPE_GEN_WHITE,                            // white noise: the same energy at every frequency
-	SCOPE_GEN_PINK,                             // pink noise: the same energy in every octave, which is closer to music
-	SCOPE_GEN_SWEEP                             // a sine that glides from SCOPE_SWEEP_START up to SCOPE_SWEEP_END, then starts again
-};
-
-#define SCOPE_SWEEP_START       20.0            // Hz. Where the sweep starts
-#define SCOPE_SWEEP_END         20000.0         // Hz. Where it ends (or 0.45 x the sample rate, if that is lower)
-#define SCOPE_SWEEP_DEFAULT_S   10.0f           // How long one sweep takes, if the command doesn't say
 
 // One ring buffer per channel. Each has exactly one writer (the audio callback) and one
 // reader (the sender thread), which is what lets it work without a lock:
@@ -68,20 +51,6 @@ static SOCKET g_scope_sock = INVALID_SOCKET;    // holds the socket
 static HANDLE g_scope_thread = NULL;            // holds the thread
 static struct sockaddr_in g_scope_addr;         // where the scope panel listens (127.0.0.1, SCOPE_PORT)
 static int g_scope_sample_rate = 0;             // passed on to the scope in every packet
-
-//The test signal's settings. Written by the sender thread (from the panel's commands), read by the callback thread
-static _Atomic int g_gen_type = SCOPE_GEN_OFF;
-static _Atomic float g_gen_freq = 1000.0f;      // Hz. Only the sine uses it
-static _Atomic float g_gen_gain = 0.1f;         // linear. The peak of the sine, and (near enough) of the noise
-static _Atomic float g_gen_sweep_s = SCOPE_SWEEP_DEFAULT_S;    // seconds. How long one sweep takes
-
-//The test signal's state. Only the callback thread touches these, so they need no atomics
-static int g_gen_playing = SCOPE_GEN_OFF;       // what is sounding now. It outlives g_gen_type by the length of the fade out
-static float g_gen_level = 0.0f;                // the gain actually applied, which glides towards g_gen_gain (or 0)
-static double g_gen_phase = 0.0;                // where the sine is in its cycle, 0.0 to 1.0
-static uint32_t g_gen_random = 0x2545F491u;     // the noise generator's state. Must never be 0
-static float g_gen_pink[3];                     // the pink noise filter's state
-static double g_gen_sweep_freq = SCOPE_SWEEP_START;    // the sweep's frequency right now, in Hz
 
 // The audio callback's side
 // Copies a block into the channel's ring buffer. No locks, no system calls
@@ -118,95 +87,6 @@ void scope_write(int channel, const float *samples, int count) {
 	//Publishing the new count is what makes the samples visible to the sender thread,
 	//so it happens last, after the samples are in place
 	atomic_store_explicit(&ring->write_count, write + n, memory_order_release);
-}
-
-// The test signal. Runs in the audio callback, in place
-int scope_test_signal(float *samples, int count) {
-
-	if (samples == NULL || count <= 0) {
-		return 0;
-	}
-
-	int type = atomic_load_explicit(&g_gen_type, memory_order_relaxed);
-	if (!atomic_load_explicit(&g_scope_running, memory_order_relaxed)) {
-		type = SCOPE_GEN_OFF;                   // no sender means no panel, so nobody could switch it off again
-	}
-
-	//Where the gain is heading. Switching off doesn't stop the signal dead: the target drops
-	//to 0 and the signal carries on until it has faded out
-	float target = 0.0f;
-	if (type != SCOPE_GEN_OFF) {
-		target = atomic_load_explicit(&g_gen_gain, memory_order_relaxed);
-		if (type == SCOPE_GEN_SWEEP && g_gen_playing != SCOPE_GEN_SWEEP) {
-			g_gen_sweep_freq = SCOPE_SWEEP_START;   // a new sweep starts at the bottom
-		}
-		g_gen_playing = type;
-	}
-	if (g_gen_playing == SCOPE_GEN_OFF) {
-		return 0;                               // off, and faded out. Leave the buffer alone
-	}
-	if (type == SCOPE_GEN_OFF && g_gen_level < 1e-5f) {
-		g_gen_playing = SCOPE_GEN_OFF;          // the fade out has finished (-100 dB)
-		g_gen_level = 0.0f;
-		return 0;
-	}
-
-	float rate = (float)g_scope_sample_rate;
-	float glide = 1.0f - expf(-1.0f / (rate * 0.001f * SCOPE_GEN_FADE_MS));     // the same one-pole smoothing as the envelope follower
-	double step = (double)atomic_load_explicit(&g_gen_freq, memory_order_relaxed) / (double)rate;
-
-	//The sweep is logarithmic: every sample, the frequency is multiplied by the same small amount,
-	//so each octave takes the same time. glide_ratio is that amount
-	double sweep_end = SCOPE_SWEEP_END;
-	if (sweep_end > 0.45 * rate) {
-		sweep_end = 0.45 * rate;
-	}
-	double sweep_samples = (double)atomic_load_explicit(&g_gen_sweep_s, memory_order_relaxed) * rate;
-	double glide_ratio = pow(sweep_end / SCOPE_SWEEP_START, 1.0 / sweep_samples);
-
-	for (int i = 0; i < count; i++) {
-
-		float value;
-		if (g_gen_playing == SCOPE_GEN_SINE || g_gen_playing == SCOPE_GEN_SWEEP) {
-			//Done in double precision so the sine's own distortion (about -150 dB) is far below anything being measured
-			value = (float)sin(SCOPE_TWO_PI * g_gen_phase);
-			if (g_gen_playing == SCOPE_GEN_SWEEP) {
-				//The phase carries on smoothly as the frequency changes, so the sweep never clicks,
-				//not even when it jumps from the top back to the bottom
-				g_gen_phase += g_gen_sweep_freq / rate;
-				g_gen_sweep_freq *= glide_ratio;
-				if (g_gen_sweep_freq >= sweep_end) {
-					g_gen_sweep_freq = SCOPE_SWEEP_START;
-				}
-			}
-			else {
-				g_gen_phase += step;
-			}
-			if (g_gen_phase >= 1.0) {
-				g_gen_phase -= 1.0;
-			}
-		}
-		else {
-			//White noise: a new random 32-bit number each sample (xorshift), scaled to -1.0 .. 1.0
-			g_gen_random ^= g_gen_random << 13;
-			g_gen_random ^= g_gen_random >> 17;
-			g_gen_random ^= g_gen_random << 5;
-			value = (float)(int32_t)g_gen_random * (1.0f / 2147483648.0f);
-
-			if (g_gen_playing == SCOPE_GEN_PINK) {
-				//Pink noise: white noise through three one-pole lowpass filters, mixed so the level
-				//falls 3 dB per octave (Paul Kellet's "economy" filter). The last factor brings its peaks back to about 1.0
-				g_gen_pink[0] = 0.99765f * g_gen_pink[0] + value * 0.0990460f;
-				g_gen_pink[1] = 0.96300f * g_gen_pink[1] + value * 0.2965164f;
-				g_gen_pink[2] = 0.57000f * g_gen_pink[2] + value * 1.0526913f;
-				value = (g_gen_pink[0] + g_gen_pink[1] + g_gen_pink[2] + value * 0.1848f) * SCOPE_PINK_SCALE;
-			}
-		}
-
-		g_gen_level += (target - g_gen_level) * glide;
-		samples[i] = value * g_gen_level;
-	}
-	return 1;
 }
 
 // The sender thread's side
@@ -252,60 +132,6 @@ static void scope_write_header(unsigned char *packet, int channel, unsigned int 
 	memcpy(packet + 8, &rate32, 4);
 	memcpy(packet + 12, &dropped32, 4);
 	memcpy(packet + 16, &index, 8);
-}
-
-// Reads a command from the panel (see THE COMMANDS in scope_tap.h) and applies it
-// Returns 1 if it was a valid command, 0 if it was ignored
-static int scope_parse_command(const char *message) {
-
-	char name[16];
-	float freq, level_db;
-	float sweep_s = SCOPE_SWEEP_DEFAULT_S;      // the 4th field is optional
-
-	if (sscanf(message, "gen %15s %f %f %f", name, &freq, &level_db, &sweep_s) < 3) {
-		return 0;                               //message string is malformed, ignore it
-	}
-	if (!isfinite(freq) || !isfinite(level_db) || !isfinite(sweep_s)) {
-		return 0;                               //check for NaN or infinite values
-	}
-
-	int type;
-	if (strcmp(name, "off") == 0)        { type = SCOPE_GEN_OFF; }
-	else if (strcmp(name, "sine") == 0)  { type = SCOPE_GEN_SINE; }
-	else if (strcmp(name, "white") == 0) { type = SCOPE_GEN_WHITE; }
-	else if (strcmp(name, "pink") == 0)  { type = SCOPE_GEN_PINK; }
-	else if (strcmp(name, "sweep") == 0) { type = SCOPE_GEN_SWEEP; }
-	else {
-		return 0;                               //not a type we know
-	}
-
-	//Keep the sine below half the sample rate (above that it would alias), and the level at or below full scale
-	float highest = 0.45f * (float)g_scope_sample_rate;
-	if (freq < 1.0f) {
-		freq = 1.0f;
-	}
-	if (freq > highest) {
-		freq = highest;
-	}
-	if (level_db > 0.0f) {
-		level_db = 0.0f;
-	}
-	if (level_db < -120.0f) {
-		level_db = -120.0f;
-	}
-	if (sweep_s < 1.0f) {
-		sweep_s = 1.0f;
-	}
-	if (sweep_s > 300.0f) {
-		sweep_s = 300.0f;
-	}
-
-	//The type is stored last, so the generator never starts with the previous frequency or level
-	atomic_store_explicit(&g_gen_freq, freq, memory_order_relaxed);
-	atomic_store_explicit(&g_gen_gain, powf(10.0f, level_db / 20.0f), memory_order_relaxed);
-	atomic_store_explicit(&g_gen_sweep_s, sweep_s, memory_order_relaxed);
-	atomic_store_explicit(&g_gen_type, type, memory_order_relaxed);
-	return 1;
 }
 
 /*  The sender thread
@@ -375,7 +201,7 @@ static DWORD WINAPI scope_sender_thread(LPVOID arg) {
 			int n = recvfrom(g_scope_sock, command, sizeof command - 1, 0, NULL, NULL);
 			if (n > 0) {
 				command[n] = '\0';
-				if (scope_parse_command(command)) {
+				if (test_signal_command(command)) {
 					last_command = GetTickCount();
 				}
 			}
@@ -387,9 +213,8 @@ static DWORD WINAPI scope_sender_thread(LPVOID arg) {
 		//The panel repeats its command every second. If it has gone quiet, it has been closed (or
 		//has crashed), so switch the test signal off rather than leave it playing with no off switch.
 		//Unsigned subtraction keeps this correct when GetTickCount wraps (every 49 days)
-		if (atomic_load_explicit(&g_gen_type, memory_order_relaxed) != SCOPE_GEN_OFF
-			&& GetTickCount() - last_command >= SCOPE_GEN_TIMEOUT_MS) {
-			atomic_store_explicit(&g_gen_type, SCOPE_GEN_OFF, memory_order_relaxed);
+		if (test_signal_is_on() && GetTickCount() - last_command >= SCOPE_GEN_TIMEOUT_MS) {
+			test_signal_off();
 		}
 	}
 	return 0;
@@ -452,7 +277,7 @@ int start_scope_sender(int sample_rate) {
 	g_scope_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
 	g_scope_sample_rate = sample_rate;
-	atomic_store_explicit(&g_gen_type, SCOPE_GEN_OFF, memory_order_relaxed);   // the test signal always starts off
+	test_signal_init(sample_rate);                                             // sets its sample rate, and the test signal always starts off
 
 	//Start every channel empty, so nothing from a previous run is sent
 	for (int ch = 0; ch < SCOPE_NUM_CHANNELS; ch++) {
@@ -483,7 +308,7 @@ void stop_scope_sender(void) {
 	//Clearing the flag ends the sender loop, and makes scope_write() return straight away.
 	//The ring buffers are static, so a callback that is part way through a write is still safe
 	atomic_store(&g_scope_running, 0);
-	atomic_store(&g_gen_type, SCOPE_GEN_OFF);           // and the test signal fades out
+	test_signal_off();                                  // and the test signal fades out
 	WaitForSingleObject(g_scope_thread, INFINITE);      // wait for the sender thread to exit
 	CloseHandle(g_scope_thread);                        // release the thread
 	g_scope_thread = NULL;

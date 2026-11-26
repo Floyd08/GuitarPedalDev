@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include "fx_chain.h"
 #include "control_def.h"
-#include "ui_listener.h"                                // register_controls
-#include "scope_tap.h"                                  // scope_test_signal, scope_write
+// #include "ui_listener.h"                                // register_controls
+// #include "scope_tap.h"                                  // scope_test_signal, scope_write
 
 void fx_chain_init(fx_chain* chain) {
 

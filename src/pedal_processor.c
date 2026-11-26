@@ -11,6 +11,7 @@
 #include "ui_listener.h"
 #include "scope_tap.h"
 #include "dsp_tools.h"
+#include "test_signals.h"
 #include "master_effects.h"
 #include "gain_effects.h"
 #include "EQ_effects.h"
@@ -76,10 +77,9 @@ static int callback(const void *input, void *output, unsigned long frame_count,
         }
     }
     
-	//const float *in = (const float *)input;
-    float* in = (float*)input;
+	const float *in = (const float *)input;
+    // float* in = (float*)input;
     float* out = (float*)output;
-    memcpy(input_scratch, in, FRAMES_PER_BUFFER * sizeof(float) );
 
     fx_chain* chain = (fx_chain*)user_data;
 
@@ -95,11 +95,13 @@ static int callback(const void *input, void *output, unsigned long frame_count,
 			}
 			return paContinue;
     }
+    memcpy(input_scratch, in, FRAMES_PER_BUFFER * sizeof(float) );
     
     //process the entire input buffer
     //passthrough_buffer(FRAMES_PER_BUFFER, in, out);
 
-    scope_test_signal(input_scratch, FRAMES_PER_BUFFER);
+    // scope_test_signal(input_scratch, FRAMES_PER_BUFFER);
+    test_signal_process(input_scratch, FRAMES_PER_BUFFER);
     scope_write(SCOPE_CH_A, input_scratch, FRAMES_PER_BUFFER);       // dry input signal
 
     process_fx_chain(chain, input_scratch, out, FRAMES_PER_BUFFER);

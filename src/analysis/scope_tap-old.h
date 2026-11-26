@@ -17,9 +17,10 @@
 // frequency (the spectrum analyser). The frequency analysis is all done in the panel, so it
 // costs the audio thread nothing more than the oscilloscope does.
 //
-// The module can also play a test signal (a sine wave or noise) in place of the input, which
-// is what frequency measurements really want: a sine shows up an effect's harmonics and
-// aliasing, and noise shows its frequency response. The panel switches it on and off.
+// The module can also play a test signal (a sine wave, a sweep or noise) in place of the input,
+// which is what frequency measurements really want: a sine shows up an effect's harmonics and
+// aliasing, a sweep shows aliasing at every frequency in one pass, and noise shows the
+// frequency response. The panel switches it on and off.
 
 #define SCOPE_PORT              9000            // The UDP port the scope panel listens on
 #define SCOPE_NUM_CHANNELS      2               // How many traces the scope can show
@@ -87,9 +88,12 @@ int scope_test_signal(float *samples, int count);
 // come from, in the same style as the UI listener's messages:
 //
 //     "gen sine 1000 -20"      type, frequency in Hz, level in dB (0 dB = a peak of 1.0)
+//     "gen sweep 0 -20 10"     the same, with an optional 4th field: how long a sweep takes, in seconds
 //
-// The type is off, sine, white or pink. The frequency only matters for a sine, but is always
-// sent. The panel repeats the message once a second, and that is what keeps the generator on.
+// The type is off, sine, white, pink or sweep. The frequency only matters for a sine, but is
+// always sent. A sweep is a sine that glides from 20 Hz up to 20 kHz (logarithmically, so every
+// octave takes the same time), then starts again; the panel shows it best in its spectrogram.
+// The panel repeats the message once a second, and that is what keeps the generator on.
 
 // THE WIRE FORMAT
 //
