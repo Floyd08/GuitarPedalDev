@@ -36,7 +36,7 @@ target_compile_options(fx_core PRIVATE -Wall -Wextra)
 
 add_executable(util_tests)
 target_sources(util_tests PRIVATE src/util/util_tests.c)
-target_link_libraries(util_tests PRIVATE dsplib)
+target_link_libraries(util_tests PRIVATE dsp_lib)
 target_compile_options(util_tests PRIVATE -Wall -Wextra)
 
 add_executable(pedal_processor)
