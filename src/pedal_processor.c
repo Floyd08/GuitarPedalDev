@@ -207,7 +207,7 @@ int main(void) {
 
     // append the effects modules to the fx_chain
     // control registration is handled by fx_chain_append
-    int append_ers[NUM_EFFECTS];
+    int append_ers[NUM_EFFECTS] = {0};
     // append_ers[0] = fx_chain_append(&chain, &c_engine.base, process_compressor);
     append_ers[1] = fx_chain_append(&chain, &g_engine.base, process_gain);
     // append_ers[2] = fx_chain_append(&chain, &eq_engine.base, process_EQ);
@@ -228,9 +228,9 @@ int main(void) {
     
     void* chain_ptr = &chain;
 
-    for (int i = 0, j = 0; i < chain.module_count; i++) {
-        j += append_ers[i];
-        if (j > 0) {
+    for (int i = 0; i < NUM_EFFECTS; i++) {
+       
+        if (append_ers[i] == 1) {
             fprintf(stderr, "Error building fx_chain, at index: %d\n", i);
         }
     }
@@ -292,6 +292,8 @@ void fx_chain_init(fx_chain* chain) {
 
 int fx_chain_append(fx_chain* chain, effects_engine* engine, prcs_function process_func) {
 
+    int ctrl_err;
+
     if(chain->module_count >= NUM_EFFECTS || engine == NULL || process_func == NULL) {
         return 1;
     }
@@ -299,9 +301,11 @@ int fx_chain_append(fx_chain* chain, effects_engine* engine, prcs_function proce
     chain->slots[chain->module_count].engine = engine;
     chain->slots[chain->module_count].process_func = process_func;
     chain->module_count++;
-    register_controls(engine);
+    if (engine->num_controls > 0) {
+        ctrl_err = register_controls(engine);
+    }
 
-    return 0;
+    return ctrl_err;
 }
 
 void process_fx_chain(fx_chain* chain, float* in_buf, float* out_buf, int buffer_size) {
