@@ -5,7 +5,6 @@
 #define NUM_IN_CHANNELS		1                           //Guitars are Mono
 #define NUM_OUT_CHANNELS    2                           //Ears are Stereo
 #define SILENCE             0.0f
-#define NUM_EFFECTS         12                          //Chosen arbitrarily, will likely rise
 #define SMTHER_ATCK_MS		10
 
 // typedef struct {

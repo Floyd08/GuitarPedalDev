@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 #include "fx_chain.h"
 #include "control_def.h"
 #include "ui_listener.h"                                // register_controls
@@ -20,9 +21,9 @@ int fx_chain_append(fx_chain* chain, effects_engine* engine, prcs_function proce
     chain->slots[chain->module_count].engine = engine;
     chain->slots[chain->module_count].process_func = process_func;
     chain->module_count++;
-    if (engine->num_controls > 0) {
-        ctrl_err = register_controls(engine);
-    }
+    // if (engine->num_controls > 0) {
+    //     ctrl_err = register_controls(engine);
+    // }
 
     return ctrl_err;
 }
@@ -43,6 +44,21 @@ void process_fx_chain(fx_chain* chain, const float* in_buf, float* out_buf, int 
 
     scope_write(SCOPE_CH_B, out_buf, buffer_size);      // wet output signal
     mono_to_stereo(out_buf, buffer_size);
+}
+
+fx_module* fx_chain_get_module(fx_chain* chain, int index) {
+
+	if (index < 0 || index > NUM_EFFECTS) {
+		fprintf(stderr, "get_module: index out of bounds\n");
+		return NULL;
+	}
+
+	return &chain->slots[index];
+}
+
+int fx_chain_get_count(fx_chain* chain) {
+
+	return chain->module_count;
 }
 
 //takes the output buffer in a mono state. Works back through the array, duplicating the mono input

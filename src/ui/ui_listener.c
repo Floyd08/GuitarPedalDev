@@ -66,8 +66,12 @@ int register_controls(effects_engine* engine) {
 		return -1;
 	}
 	if (defs == NULL || count <= 0) {
-		fprintf(stderr, "register_controls: the control table is missing or empty\n");
+		fprintf(stderr, "register_controls: the control table is missing\n");
 		return -1;
+	}
+	if (count <= 0) {
+		fprintf(stderr, "register_controls: the control table is empty\n");
+		return 0;
 	}
 	if (g_count + count > MAX_CONTROLS) {
 		fprintf(stderr, "register_controls: too many controls (the maximum is %d)\n", MAX_CONTROLS);
