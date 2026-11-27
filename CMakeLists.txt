@@ -18,6 +18,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(portaudio)
 
+FetchContent_Declare(
+	unity
+	GIT_REPOSITORY https://github.com/ThrowTheSwitch/Unity
+	GIT_TAG b6763fbd9cedfacaa89e2ad9fd00d615a234e355			# v2.7.0	checked last on: 2026-11-26
+)
+FetchContent_MakeAvailable(unity)
+
+enable_testing()
 
 add_library(dsp_lib STATIC)
 target_sources(dsp_lib PRIVATE extensions/BiquadFilter/Biquad.c extensions/BiquadFilter/one_pole.c src/util/dsp_tools.c src/util/test_signals.c)
@@ -34,10 +42,14 @@ target_link_libraries(fx_core PUBLIC dsp_lib)
 target_compile_options(fx_core PRIVATE -Wall -Wextra)
 
 
-add_executable(util_tests)
-target_sources(util_tests PRIVATE src/util/util_tests.c)
-target_link_libraries(util_tests PRIVATE dsp_lib)
-target_compile_options(util_tests PRIVATE -Wall -Wextra)
+add_executable(test_dsp_tools)
+target_sources(test_dsp_tools PRIVATE src/tests/test_dsp_tools.c)
+target_link_libraries(test_dsp_tools PRIVATE unity::framework dsp_lib)
+target_compile_options(test_dsp_tools PRIVATE -Wall -Wextra)
+
+
+add_test(NAME test_ringbuffer COMMAND util_tests)
+
 
 add_executable(pedal_processor)
 target_sources(pedal_processor PRIVATE src/pedal_processor.c src/ui/ui_listener.c src/analysis/scope_tap.c)
