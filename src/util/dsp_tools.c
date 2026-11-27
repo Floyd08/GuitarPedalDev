@@ -441,6 +441,10 @@ float linear_interpolate(float fractional_index, float sample1, float sample2) {
 
 	float fraction, whole, difference;
 
+	if (fractional_index < 0) {
+		return sample1;
+	}
+
 	whole = floorf(fractional_index);
 	fraction = fractional_index - whole;
 	difference = 1 - fraction;

@@ -47,8 +47,13 @@ target_sources(test_dsp_tools PRIVATE src/tests/test_dsp_tools.c)
 target_link_libraries(test_dsp_tools PRIVATE unity::framework dsp_lib)
 target_compile_options(test_dsp_tools PRIVATE -Wall -Wextra)
 
+add_executable(test_amp_model)
+target_sources(test_amp_model PRIVATE src/tests/test_amp_head.c)
+target_link_libraries(test_amp_model PRIVATE unity::framework fx_core)
+target_compile_options(test_amp_model PRIVATE -Wall -Wextra)
 
-add_test(NAME test_ringbuffer COMMAND util_tests)
+
+add_test(NAME test_dsp_tools COMMAND test_dsp_tools)
 
 
 add_executable(pedal_processor)

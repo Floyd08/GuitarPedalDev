@@ -1,25 +1,33 @@
 #include <stdio.h>
 #include <math.h>
+#include "unity.h"
 #include "dsp_tools.h"
 
 void setUp(void) {}				// runs before each test
 void tearDown(void) {}			// runs after each test
 
-int test_ring_buffer();
+// Ring buffer tests
+void test_ring_buffer();
+
+// Linear interpolater tests
+void test_linear_interp_negative();
 
 int main(void) {
 
 	UNITY_BEGIN();
+
+	// Ring buffer tests
 	RUN_TEST(test_ring_buffer);
+
+	// Linear interpolater tests
+	RUN_TEST(test_linear_interp_negative);
 
 	return UNITY_END();
 }
 
-int test_ring_buffer() {
+// Ring buffer tests
 
-	int fail_count = 0;
-
-	printf("begin ring buffer test\n");
+void test_ring_buffer() {
 
 	float sine_440hz[16] = {
     	0.000000f, 0.062648f, 0.125051f, 0.186961f, 
@@ -58,13 +66,19 @@ int test_ring_buffer() {
 	r_buf.read_head = 0;
 	r_buffer_read_block(&r_buf, 16, test_output);
 
-	for(int i = 0; i < 8; i++) {
+	TEST_ASSERT_FLOAT_ARRAY_WITHIN(1e-6f, correct_output, test_output, delay);
+}
 
-		if ( !(fabsf(test_output[i] - correct_output[i]) < 1e-6f) ) {
-			TEST_ASSERT_FLOAT_WITHIN(1e-6f, test_output[i], correct_output[i]);
-			// fail_count = fail_count + 1;
-			fprintf(stderr, "Output_sample %d: %f --- Expected sample %d: %f\n", i, test_output[i], i, correct_output[i]);
-		}
-	}
-	return fail_count;
+
+// Linear interpolater tests
+void test_linear_interp_negative() {
+
+	float sample1 = 0.6; 
+	float sample2 = 0.8;
+	float fractional_index = -1;
+	float expected = 0.6, actual = -1;
+
+	actual = linear_interpolate(fractional_index, sample1, sample2);
+	TEST_ASSERT_FLOAT_WITHIN(1e-6f, expected, actual);
+
 }
