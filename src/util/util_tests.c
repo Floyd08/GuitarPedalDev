@@ -6,15 +6,23 @@
 // void test_downsampling();
 // void test_alias_filtering();
 void test_envelope_sampler();
-void test_ring_buffer();
+int test_ring_buffer();
 
 int main(void) {
+
+	int rb_test;
 
 	//test_upsampling();
 	//test_downsampling();
 	//test_alias_filtering();
 	//test_envelope_sampler();
-	test_ring_buffer();
+	rb_test = test_ring_buffer();
+
+	if (rb_test != 0){
+		return -1;
+	}
+
+	return 0;
 }
 /*
 void test_upsampling() {
@@ -110,7 +118,9 @@ void test_envelope_sampler() {
 	}
 }
 
-void test_ring_buffer() {
+int test_ring_buffer() {
+
+	int fail_count = 0;
 
 	printf("begin ring buffer test\n");
 
@@ -136,9 +146,9 @@ void test_ring_buffer() {
 	int delay = 8;						//delay by 8 samples
 
 	r_buffer_write_block(&r_buf, 16, sine_440hz);
-	for(int i = 0; i < 16; i++) {
-		printf("Test_sample %d: %f\n", i, r_buf.r_buffer[i]);
-	}
+	// for(int i = 0; i < 16; i++) {
+	// 	printf("Test_sample %d: %f\n", i, r_buf.r_buffer[i]);
+	// }
 
 	r_buf.write_head = 0;
 	r_buf.read_head = r_buf.write_head + delay;
@@ -154,8 +164,16 @@ void test_ring_buffer() {
 	r_buf.read_head = 0;
 	r_buffer_read_block(&r_buf, 16, test_output);
 
-	for(int i = 0; i < 16; i++) {
-		printf("Output_sample %d: %f\n", i, test_output[i]);
-	}
+	// for(int i = 0; i < 16; i++) {
+	// 	printf("Output_sample %d: %f\n", i, test_output[i]);
+	// }
 
+	for(int i = 0; i < 8; i++) {
+
+		if ( !(fabsf(test_output[i] - correct_output[i]) < 1e-6f) ) {
+			fail_count = fail_count + 1;
+			fprintf(stderr, "Output_sample %d: %f --- Expected sample %d: %f\n", i, test_output[i], i, correct_output[i]);
+		}
+	}
+	return fail_count;
 }

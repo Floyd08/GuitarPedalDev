@@ -24,7 +24,6 @@ void fx_chain_init(fx_chain* chain);
 int fx_chain_append(fx_chain* chain, effects_engine* engine, prcs_function process_func);
 void process_fx_chain(fx_chain* chain, const float* in_buf, float* out_buf, int buffer_size);
 
-// int loop_over_fx_chain(fx_chain* chain, fx_engine_func func);
 fx_module* fx_chain_get_module(fx_chain* chain, int index);
 int fx_chain_get_count(fx_chain* chain);
 
