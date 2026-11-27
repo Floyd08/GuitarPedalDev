@@ -126,7 +126,7 @@ float process_lfo(low_freq_oscillator* lfo);
 void set_lfo_rate(low_freq_oscillator* lfo, float rate_Hz, int sample_rate);
 
 
-void allpass_init(allpass_filter* apf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float gain);
+int allpass_init(allpass_filter* apf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float gain);
 void allpass_free(allpass_filter* apf);
 float process_allpass(allpass_filter* apf, float sample);
 void ap_update_gain(allpass_filter* apf, float gain);
