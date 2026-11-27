@@ -189,7 +189,7 @@ unsigned int wrap_index(unsigned int current_index, int index_mod, unsigned int 
 
 
 // allpass filters
-void allpass_init(allpass_filter* apf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float gain) {
+int allpass_init(allpass_filter* apf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float gain) {
 
 	int rb_create = 1;
 
@@ -198,6 +198,8 @@ void allpass_init(allpass_filter* apf, unsigned int length_ms, unsigned int dl_l
 	
 	rb_create =  r_buffer_init(&apf->ap_buffer, dl_length);
 	apf->ap_gain = gain;
+
+	return rb_create;
 }
 
 void allpass_free(allpass_filter* apf) {
