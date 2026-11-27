@@ -41,6 +41,9 @@ Reverb_effects implements two reverb designs.
 	- 5 allpass filters in series
 	- A Freeverb implementation (8 comb filters in parallel, into 4 allpass in series)
 
+Amplitude_effects implements Tremolo and Harmonic Tremolo
+	- Parameters for both effects: Rate, depth, Dry/Wet mix
+
 Master_effects handles Master control of the application, and for now handles only Master Volume, which is processed at the very end of the signal chain.
 
 The signal chain is defined at runtime in main, and callback routes audio through the each module by looping though the fx_chain
