@@ -73,7 +73,7 @@ void test_ring_buffer() {
 // Linear interpolater tests
 void test_linear_interp_negative() {
 
-	float sample1 = 0.6; 
+	float sample1 = 0.4;
 	float sample2 = 0.8;
 	float fractional_index = -1;
 	float expected = 0.6, actual = -1;
