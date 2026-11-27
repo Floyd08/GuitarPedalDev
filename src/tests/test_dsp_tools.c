@@ -7,9 +7,10 @@
 #include "dsp_tools.h"
 
 static void ap_close(void);		// frees the allpass under test (defined with the allpass tests)
+static void vc_close_all(void);	// frees the comb filters under test (defined with the comb tests)
 
 void setUp(void) {}				// runs before each test
-void tearDown(void) {}			// runs after each test
+void tearDown(void) { ap_close(); vc_close_all(); }			// runs after each test
 
 // Ring buffer tests
 void test_ring_buffer();
@@ -30,6 +31,21 @@ void test_allpass_delay_equals_buffer_length(void);
 void test_allpass_delay_exceeds_buffer_length(void);
 void test_allpass_update_gain_applies_new_gain(void);
 void test_allpass_update_gain_preserves_state(void);
+
+// Comb filter tests
+void test_verb_comb_init_sets_fields(void);
+void test_verb_comb_init_delay_samples_44k1(void);
+void test_verb_comb_init_rejects_invalid_config(void);
+void test_verb_comb_first_echo(void);
+void test_verb_comb_zero_gain_is_pure_delay(void);
+void test_verb_comb_matches_reference_model(void);
+void test_verb_comb_dc_gain(void);
+void test_verb_comb_damping_attenuates_highs(void);
+void test_verb_comb_impulse_tail_decays(void);
+void test_verb_comb_instances_are_independent(void);
+void test_verb_comb_delay_equals_buffer_length(void);
+void test_verb_comb_update_gain_applies_new_gain(void);
+void test_verb_comb_update_gain_preserves_state(void);
 
 int main(void) {
 
@@ -54,6 +70,21 @@ int main(void) {
 	RUN_TEST(test_allpass_delay_exceeds_buffer_length);
 	RUN_TEST(test_allpass_update_gain_applies_new_gain);
 	RUN_TEST(test_allpass_update_gain_preserves_state);
+
+	// Comb filter tests
+	RUN_TEST(test_verb_comb_init_sets_fields);
+	RUN_TEST(test_verb_comb_init_delay_samples_44k1);
+	RUN_TEST(test_verb_comb_init_rejects_invalid_config);
+	RUN_TEST(test_verb_comb_first_echo);
+	RUN_TEST(test_verb_comb_zero_gain_is_pure_delay);
+	RUN_TEST(test_verb_comb_matches_reference_model);
+	RUN_TEST(test_verb_comb_dc_gain);
+	RUN_TEST(test_verb_comb_damping_attenuates_highs);
+	RUN_TEST(test_verb_comb_impulse_tail_decays);
+	RUN_TEST(test_verb_comb_instances_are_independent);
+	RUN_TEST(test_verb_comb_delay_equals_buffer_length);
+	RUN_TEST(test_verb_comb_update_gain_applies_new_gain);
+	RUN_TEST(test_verb_comb_update_gain_preserves_state);
 
 	return UNITY_END();
 }
@@ -475,4 +506,423 @@ void test_allpass_update_gain_preserves_state(void) {
 		echoes_only[i] = (i % AP_D == 0) ? y[i] : 0.0f;
 	}
 	TEST_ASSERT_FLOAT_ARRAY_WITHIN(1e-6f, echoes_only, y, N);
+}
+
+
+/*----------------------------------------------------------------------------------------------*/
+// Comb filter tests
+//
+// These describe a correct lowpass-feedback comb (the reverb comb from Schroeder and Moorer, as
+// used in Freeverb):
+//
+//     y[n] = v[n-D]                  the output is the delay line's output (no direct path)
+//     v[n] = x[n] + g * LPF{y}[n]    the line takes the input plus damped, scaled feedback
+//
+//  - the first echo is the input itself, exactly D samples later
+//  - the damping lowpass has unity gain at DC, so a constant input settles at 1 / (1 - g)
+//    whatever the damping; damping only makes the high frequencies die away faster
+//  - with |g| < 1 the tail decays at least as fast as g per trip round the loop
+//  - D = length_ms * sample_rate / 1000, rounded to the nearest sample
+//  - verb_comb_init() returns 0 on success, and non-zero if dl_length isn't a power of two >= 2
+//    or the delay doesn't fit in it (D == dl_length is fine)
+//  - after a failed verb_comb_init(), r_buffer and lpf are both NULL, so verb_comb_free() is safe
+//  - verb_comb_update_gain() takes effect on the next sample and leaves the delay line alone
+//  - separate combs share no state
+
+#define VC_RATE			48000		// sample rate used by most of the comb tests
+#define VC_DELAY_MS		1			// 1 ms at 48 kHz...
+#define VC_D			48			// ...is 48 samples, so the comb resonates every 1 kHz
+#define VC_LINE			64			// delay line length: a power of two, longer than VC_D
+#define VC_DAMP_LOW		1500.0f		// damping cutoffs: heavy,
+#define VC_DAMP_MID		10000.0f	// the default,
+#define VC_DAMP_HIGH	15000.0f	// and light
+
+// The combs under test (two slots, for the independence test). vc_open() fills a slot with junk
+// before calling verb_comb_init(), and tearDown() frees whatever is still open.
+static verb_comb_filter vc[2];
+static int vc_needs_free[2] = { 0, 0 };
+
+static void vc_close(int slot) {
+
+	if (vc_needs_free[slot]) {
+		verb_comb_free(&vc[slot]);
+		vc_needs_free[slot] = 0;
+	}
+}
+
+static void vc_close_all(void) {
+
+	vc_close(0);
+	vc_close(1);
+}
+
+static int vc_open(int slot, unsigned int length_ms, unsigned int dl_length, int sample_rate,
+				   float lpf_hz, float gain) {
+
+	vc_close(slot);
+	memset(&vc[slot], 0xA5, sizeof vc[slot]);
+
+	int rc = verb_comb_init(&vc[slot], length_ms, dl_length, sample_rate, lpf_hz, gain);
+	vc_needs_free[slot] = (rc == 0);
+	return rc;
+}
+
+static void vc_open_ok(int slot, unsigned int length_ms, unsigned int dl_length, int sample_rate,
+					   float lpf_hz, float gain) {
+
+	int rc = vc_open(slot, length_ms, dl_length, sample_rate, lpf_hz, gain);
+	TEST_ASSERT_EQUAL_INT_MESSAGE(0, rc, "verb_comb_init() failed for a valid configuration");
+}
+
+// Feeds in[0..n-1] through the comb, one sample at a time
+static void run_comb(verb_comb_filter* vcf, const float* in, float* out, int n) {
+
+	for (int i = 0; i < n; i++) {
+		out[i] = process_verb_comb(vcf, in[i]);
+	}
+}
+
+// Feeds a unit impulse followed by n-1 zeros
+static void run_comb_impulse(verb_comb_filter* vcf, float* out, int n) {
+
+	for (int i = 0; i < n; i++) {
+		out[i] = process_verb_comb(vcf, (i == 0) ? 1.0f : 0.0f);
+	}
+}
+
+// Feeds a constant input for n samples and returns the last output
+static float settled_output(verb_comb_filter* vcf, float input, int n) {
+
+	float y = 0.0f;
+	for (int i = 0; i < n; i++) {
+		y = process_verb_comb(vcf, input);
+	}
+	return y;
+}
+
+// The comb evaluated straight from its definition, y[n] = v[n-D] and v[n] = x[n] + g * LPF{y}[n],
+// with its own one-pole built from the same settings as the comb's
+static void reference_comb(const float* x, float* y, int n, int d, float g, float lpf_hz, int sample_rate) {
+
+	float* v = malloc(n * sizeof *v);
+	onepole* lpf = op_new(OP_LOWPASS, lpf_hz, 0.0f, sample_rate);
+
+	if (v == NULL || lpf == NULL) {
+		free(v);
+		op_destroy(lpf);
+		TEST_FAIL_MESSAGE("reference_comb() setup failed");
+		return;
+	}
+	for (int i = 0; i < n; i++) {
+		y[i] = (i >= d) ? v[i - d] : 0.0f;
+		v[i] = x[i] + g * op_process(lpf, y[i]);
+	}
+	free(v);
+	op_destroy(lpf);
+}
+
+// Steady-state output/input RMS for a sine with the given period (in samples), through a fresh
+// comb in slot 0
+static double comb_sine_gain(float lpf_hz, float g, int period) {
+
+	enum { N = 100 * VC_D, SETTLE = 80 * VC_D };
+	static float in[N], out[N];
+
+	for (int i = 0; i < N; i++) {
+		in[i] = sinf(TWO_PI * (float)(i % period) / (float)period);
+	}
+	vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, lpf_hz, g);
+	run_comb(&vc[0], in, out, N);
+
+	int len = N - SETTLE;
+	len -= len % period;							// a whole number of periods
+	return rms(out + N - len, len) / rms(in + N - len, len);
+}
+
+// The same measurement through the damping lowpass on its own
+static double onepole_sine_gain(float lpf_hz, int period) {
+
+	enum { N = 20 * VC_D };
+	float in[N], out[N];
+	onepole* lpf = op_new(OP_LOWPASS, lpf_hz, 0.0f, VC_RATE);
+	TEST_ASSERT_NOT_NULL(lpf);
+
+	for (int i = 0; i < N; i++) {
+		in[i] = sinf(TWO_PI * (float)(i % period) / (float)period);
+		out[i] = op_process(lpf, in[i]);
+	}
+	op_destroy(lpf);
+
+	int len = N / 2;
+	len -= len % period;
+	return rms(out + N - len, len) / rms(in + N - len, len);
+}
+
+
+// verb_comb_init
+
+void test_verb_comb_init_sets_fields(void) {
+
+	int rc = vc_open(0, 10, 512, 48000, VC_DAMP_MID, 0.84f);
+
+	TEST_ASSERT_EQUAL_INT_MESSAGE(0, rc, "verb_comb_init() should succeed");
+	TEST_ASSERT_EQUAL_FLOAT(10.0f, vc[0].vc_delay_ms);
+	TEST_ASSERT_EQUAL_UINT(480u, vc[0].vc_delay_samples);		// 10 ms * 48 samples/ms
+	TEST_ASSERT_EQUAL_FLOAT(0.84f, vc[0].comb_gain);
+	TEST_ASSERT_NOT_NULL(vc[0].vc_buffer.r_buffer);
+	TEST_ASSERT_EQUAL_UINT(512u, vc[0].vc_buffer.size);
+	TEST_ASSERT_EQUAL_UINT(511u, vc[0].vc_buffer.mask);
+	TEST_ASSERT_EQUAL_INT(0, vc[0].vc_buffer.write_head);
+	TEST_ASSERT_NOT_NULL(vc[0].lpf);
+}
+
+void test_verb_comb_init_delay_samples_44k1(void) {
+
+	// 10 ms at 44.1 kHz is exactly 441 samples
+	vc_open_ok(0, 10, 512, 44100, VC_DAMP_MID, 0.84f);
+	TEST_ASSERT_EQUAL_UINT_MESSAGE(441u, vc[0].vc_delay_samples, "10 ms at 44.1 kHz");
+
+	// 7 ms at 44.1 kHz is 308.7 samples, which should round up to 309 rather than truncate
+	vc_open_ok(0, 7, 512, 44100, VC_DAMP_MID, 0.84f);
+	TEST_ASSERT_EQUAL_UINT_MESSAGE(309u, vc[0].vc_delay_samples, "7 ms at 44.1 kHz");
+}
+
+void test_verb_comb_init_rejects_invalid_config(void) {
+
+	// not a power of two; shorter than 2; too short for 48 samples; too short for 480 samples
+	const unsigned int delay_ms[] = { 1, 1, 1, 10 };
+	const unsigned int line_len[] = { 1000, 1, 32, 256 };
+	char msg[96];
+
+	for (int i = 0; i < 4; i++) {
+		int rc = vc_open(0, delay_ms[i], line_len[i], VC_RATE, VC_DAMP_MID, 0.84f);
+
+		snprintf(msg, sizeof msg, "%u ms in a %u-sample line: verb_comb_init() should return an error",
+				 delay_ms[i], line_len[i]);
+		TEST_ASSERT_NOT_EQUAL_MESSAGE(0, rc, msg);
+		snprintf(msg, sizeof msg, "%u ms in a %u-sample line: a failed init should leave r_buffer NULL",
+				 delay_ms[i], line_len[i]);
+		TEST_ASSERT_NULL_MESSAGE(vc[0].vc_buffer.r_buffer, msg);
+		snprintf(msg, sizeof msg, "%u ms in a %u-sample line: a failed init should leave lpf NULL",
+				 delay_ms[i], line_len[i]);
+		TEST_ASSERT_NULL_MESSAGE(vc[0].lpf, msg);
+
+		verb_comb_free(&vc[0]);		// has to be safe after a failed init
+	}
+}
+
+
+// process_verb_comb
+
+void test_verb_comb_first_echo(void) {
+
+	enum { N = 2 * VC_D + 1 };
+	float expected[N], actual[N];
+
+	vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, VC_DAMP_MID, 0.84f);
+	run_comb_impulse(&vc[0], actual, N);
+
+	// silent, then the impulse itself at n = D, then silent until the second echo at 2D
+	for (int i = 0; i < N; i++) {
+		expected[i] = 0.0f;
+	}
+	expected[VC_D] = 1.0f;
+
+	TEST_ASSERT_FLOAT_ARRAY_WITHIN(1e-7f, expected, actual, 2 * VC_D);
+	TEST_ASSERT_TRUE_MESSAGE(actual[2 * VC_D] > 0.0f, "the second echo should start at n = 2D");
+}
+
+void test_verb_comb_zero_gain_is_pure_delay(void) {
+
+	enum { N = 8 * VC_LINE };					// eight trips around the delay line
+	float in[N], expected[N], actual[N];
+
+	for (int i = 0; i < N; i++) {
+		in[i] = (float)(i + 1) / N;				// ramp: every sample distinct and non-zero
+		expected[i] = (i >= VC_D) ? in[i - VC_D] : 0.0f;
+	}
+
+	vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, VC_DAMP_MID, 0.0f);
+	run_comb(&vc[0], in, actual, N);
+
+	TEST_ASSERT_FLOAT_ARRAY_WITHIN(1e-7f, expected, actual, N);
+}
+
+void test_verb_comb_matches_reference_model(void) {
+
+	enum { N = 20 * VC_LINE };					// twenty trips around the delay line
+	static float in[N], expected[N], actual[N];
+	const float gains[] = { 0.5f, 0.84f, -0.6f };
+	const float damping[] = { VC_DAMP_LOW, VC_DAMP_MID, VC_DAMP_HIGH };
+	char msg[48];
+
+	uint32_t seed = 12345u;
+	for (int i = 0; i < N; i++) {
+		in[i] = next_noise(&seed);
+	}
+
+	for (int k = 0; k < 3; k++) {
+		for (int j = 0; j < 3; j++) {
+			vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, damping[j], gains[k]);
+			run_comb(&vc[0], in, actual, N);
+			reference_comb(in, expected, N, VC_D, gains[k], damping[j], VC_RATE);
+
+			snprintf(msg, sizeof msg, "g = %.2f, damping at %.0f Hz", gains[k], damping[j]);
+			TEST_ASSERT_FLOAT_ARRAY_WITHIN_MESSAGE(1e-5f, expected, actual, N, msg);
+		}
+	}
+}
+
+void test_verb_comb_dc_gain(void) {
+
+	const float gains[] = { 0.5f, 0.9f };
+	const float damping[] = { VC_DAMP_LOW, VC_DAMP_HIGH };
+	char msg[48];
+
+	for (int k = 0; k < 2; k++) {
+		for (int j = 0; j < 2; j++) {
+			const float expected = 1.0f / (1.0f - gains[k]);	// 2 and 10, whatever the damping
+
+			vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, damping[j], gains[k]);
+			float settled = settled_output(&vc[0], 1.0f, 200 * VC_D);
+
+			snprintf(msg, sizeof msg, "g = %.1f, damping at %.0f Hz", gains[k], damping[j]);
+			TEST_ASSERT_FLOAT_WITHIN_MESSAGE(1e-4f * expected, expected, settled, msg);
+		}
+	}
+}
+
+void test_verb_comb_damping_attenuates_highs(void) {
+
+	// With D = 48 at 48 kHz the comb resonates every 1 kHz, and a 4-sample period is the 12 kHz
+	// resonance. Undamped, it would peak at the DC gain, 1 / (1 - g). The damping filter passes
+	// only |L| of a 12 kHz signal on each trip, so the peak can't exceed 1 / (1 - g * |L|).
+	const float g = 0.84f;
+	const float damping[] = { VC_DAMP_HIGH, VC_DAMP_LOW };		// light, then heavy
+	double peak[2];
+	char msg[112];
+
+	for (int j = 0; j < 2; j++) {
+		double lpf_gain = onepole_sine_gain(damping[j], 4);		// |L| at 12 kHz, on its own
+		double limit = 1.0 / (1.0 - g * lpf_gain);
+		peak[j] = comb_sine_gain(damping[j], g, 4);
+
+		snprintf(msg, sizeof msg, "damping at %.0f Hz: 12 kHz resonance peaks at %.3f, limit %.3f (undamped %.3f)",
+				 damping[j], peak[j], limit, 1.0 / (1.0 - g));
+		TEST_ASSERT_TRUE_MESSAGE(peak[j] <= limit + 1e-4, msg);
+	}
+
+	snprintf(msg, sizeof msg, "12 kHz resonance: 1.5 kHz damping gave %.3f, 15 kHz gave %.3f", peak[1], peak[0]);
+	TEST_ASSERT_TRUE_MESSAGE(peak[1] < peak[0], msg);
+}
+
+void test_verb_comb_impulse_tail_decays(void) {
+
+	// g = 0.95 with a 1 ms loop: undamped, the tail would take about 0.13 s to fall 60 dB
+	enum { TRIPS = 300, N = TRIPS * VC_D };			// 0.3 s
+	static float h[N];
+	const float g = 0.95f;
+	float envelope = 1.0f;							// g^(k-1) for the k-th echo
+	float peak = 0.0f;
+	char msg[96];
+
+	vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, VC_DAMP_MID, g);
+	run_comb_impulse(&vc[0], h, N);
+
+	// each trip round the loop comes back no louder than g times the one before
+	for (int k = 1; k < TRIPS; k++) {
+		peak = 0.0f;
+		for (int i = k * VC_D; i < (k + 1) * VC_D; i++) {
+			peak = fmaxf(peak, fabsf(h[i]));
+		}
+		if (peak > envelope + 1e-6f) {
+			snprintf(msg, sizeof msg, "echo %d peaks at %g, above the g^%d envelope of %g", k, peak, k - 1, envelope);
+			TEST_FAIL_MESSAGE(msg);
+		}
+		envelope *= g;
+	}
+
+	// after 0.3 s the last echo has died away to below -120 dB
+	TEST_ASSERT_FLOAT_WITHIN_MESSAGE(1e-6f, 0.0f, peak, "the tail should be below -120 dB after 0.3 s");
+}
+
+void test_verb_comb_instances_are_independent(void) {
+
+	enum { N = 20 * VC_LINE };
+	static float in[N], busy[N], quiet[N], solo[N], silence[N];
+	uint32_t seed = 777u;
+
+	for (int i = 0; i < N; i++) {
+		in[i] = next_noise(&seed);
+	}
+
+	// two combs with different settings, processed side by side: one fed noise, one silence
+	vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, VC_DAMP_LOW, 0.84f);
+	vc_open_ok(1, 2, 2 * VC_LINE, VC_RATE, VC_DAMP_MID, 0.7f);
+	for (int i = 0; i < N; i++) {
+		busy[i] = process_verb_comb(&vc[0], in[i]);
+		quiet[i] = process_verb_comb(&vc[1], 0.0f);
+	}
+
+	// the busy comb again, on its own
+	vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, VC_DAMP_LOW, 0.84f);
+	run_comb(&vc[0], in, solo, N);
+
+	TEST_ASSERT_FLOAT_ARRAY_WITHIN_MESSAGE(1e-7f, silence, quiet, N, "the silent comb picked up signal");
+	TEST_ASSERT_FLOAT_ARRAY_WITHIN_MESSAGE(1e-7f, solo, busy, N, "running alongside another comb changed the output");
+}
+
+
+// delay vs. ring buffer length
+
+void test_verb_comb_delay_equals_buffer_length(void) {
+
+	// 2 ms at 32 kHz is 64 samples, which exactly fills a 64-sample line
+	enum { D = 64, N = 2 * D + 1 };
+	float expected[N], actual[N];
+
+	vc_open_ok(0, 2, D, 32000, VC_DAMP_MID, 0.84f);
+	run_comb_impulse(&vc[0], actual, N);
+
+	for (int i = 0; i < N; i++) {
+		expected[i] = 0.0f;
+	}
+	expected[D] = 1.0f;								// first echo exactly at n = 64
+
+	TEST_ASSERT_FLOAT_ARRAY_WITHIN(1e-7f, expected, actual, 2 * D);
+	TEST_ASSERT_TRUE_MESSAGE(actual[2 * D] > 0.0f, "the second echo should start at n = 128");
+}
+
+
+// verb_comb_update_gain
+
+void test_verb_comb_update_gain_applies_new_gain(void) {
+
+	vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, VC_DAMP_MID, 0.5f);
+	verb_comb_update_gain(&vc[0], 0.8f);
+
+	float settled = settled_output(&vc[0], 1.0f, 200 * VC_D);
+	TEST_ASSERT_FLOAT_WITHIN_MESSAGE(1e-3f, 5.0f, settled, "constant input should settle at 1 / (1 - 0.8)");
+}
+
+void test_verb_comb_update_gain_preserves_state(void) {
+
+	float expected[VC_D], actual[VC_D];
+
+	vc_open_ok(0, VC_DELAY_MS, VC_LINE, VC_RATE, VC_DAMP_MID, 0.5f);
+	float before = settled_output(&vc[0], 1.0f, 200 * VC_D);
+	TEST_ASSERT_FLOAT_WITHIN_MESSAGE(1e-4f, 2.0f, before, "should settle at 1 / (1 - 0.5) before the change");
+
+	verb_comb_update_gain(&vc[0], 0.8f);
+
+	// the next D samples were already in the delay line, so they come out unchanged
+	for (int i = 0; i < VC_D; i++) {
+		expected[i] = before;
+		actual[i] = process_verb_comb(&vc[0], 1.0f);
+	}
+	TEST_ASSERT_FLOAT_ARRAY_WITHIN(1e-5f, expected, actual, VC_D);
+
+	// after that, the output settles at the new 1 / (1 - g)
+	float after = settled_output(&vc[0], 1.0f, 200 * VC_D);
+	TEST_ASSERT_FLOAT_WITHIN_MESSAGE(1e-3f, 5.0f, after, "should settle at 1 / (1 - 0.8) after the change");
 }

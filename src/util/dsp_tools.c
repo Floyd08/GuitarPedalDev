@@ -259,7 +259,7 @@ void verb_comb_init(verb_comb_filter* vcf, unsigned int length_ms, unsigned int 
 
 	r_buffer_init(&vcf->vc_buffer, dl_length);
 	vcf->comb_gain = gain;
-	vcf->lpf = op_new(LOWPASS, lpf_centre, UNITY_GAIN, sample_rate);
+	vcf->lpf = op_new(OP_LOWPASS, lpf_centre, UNITY_GAIN, sample_rate);
 }
 
 void verb_comb_free(verb_comb_filter* vcf) {

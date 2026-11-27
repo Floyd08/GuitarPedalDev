@@ -1,3 +1,6 @@
+#ifndef ONEPOLE_H
+#define ONEPOLE_H
+
 // One-pole / first-order IIR filter module (companion to Biquad.h)
 //
 // Difference equation (direct form I):
@@ -36,3 +39,5 @@ float op_process(onepole* op, float input);
 void op_destroy(onepole* op);
 void op_print_info(onepole* op);
 void op_load_coefficients(onepole* op, int filter_type, double A, double K);
+
+#endif
