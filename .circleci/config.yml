@@ -1,0 +1,29 @@
+version: 2.1
+
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/base:2026.11-26.04
+    steps:
+      - checkout
+      - run:
+          name: Install CMake
+          command: sudo apt-get update && sudo apt-get install -y cmake
+      - run:
+          name: Configure
+          command: cmake -S . -B build
+      - run:
+          name: Build
+          command: cmake --build build
+      - run:
+          name: Test
+          command: |
+            mkdir -p ~/test-results
+            ctest --test-dir build --output-on-failure --output-junit ~/test-results/ctest.xml
+      - store_test_results:
+          path: ~/test-results
+
+workflows:
+  ci:
+    jobs:
+      - build-and-test
