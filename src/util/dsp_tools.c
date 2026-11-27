@@ -87,16 +87,20 @@ int r_buffer_init(ring_buffer* r_buffer, unsigned int size) {
 
 	if (size < 2) {
 		fprintf(stderr, "ring_buffer size must be 2 or greater\n");
+		r_buffer_free(r_buffer);
 		return 1;
 	}
 	if ((size & (size - 1)) != 0) {
 		fprintf(stderr, "ring_buffer size must be a power of 2\n");
+		r_buffer_free(r_buffer);
 		return 1;
 	}
 
 	r_buffer->r_buffer = calloc(size, sizeof(float));
 	if(r_buffer->r_buffer == NULL) {
-		fprintf(stderr, "ring_buffer allocation failure\n");		return 1;
+		fprintf(stderr, "ring_buffer allocation failure\n");
+		r_buffer_free(r_buffer);		
+		return 1;
 	}
 
 	r_buffer->write_head = 0;
@@ -192,9 +196,15 @@ unsigned int wrap_index(unsigned int current_index, int index_mod, unsigned int 
 int allpass_init(allpass_filter* apf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float gain) {
 
 	int rb_create = 1;
+	float s_rate = (float)sample_rate;
+
 
 	apf->ap_delay_ms = length_ms;
-	apf->ap_delay_samples = lroundf(length_ms * (sample_rate / 1000));
+	apf->ap_delay_samples = lroundf(length_ms * (s_rate / 1000.0f));
+
+	if(apf->ap_delay_samples > dl_length) {
+		return 1;
+	}
 	
 	rb_create =  r_buffer_init(&apf->ap_buffer, dl_length);
 	apf->ap_gain = gain;
