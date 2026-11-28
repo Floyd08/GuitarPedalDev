@@ -132,7 +132,7 @@ float process_allpass(allpass_filter* apf, float sample);
 void ap_update_gain(allpass_filter* apf, float gain);
 
 
-void verb_comb_init(verb_comb_filter* vcf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float lpf_centre, float gain);
+int verb_comb_init(verb_comb_filter* vcf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float lpf_centre, float gain);
 void verb_comb_free(verb_comb_filter* vcf);
 float process_verb_comb(verb_comb_filter* vcf, float sample);
 void verb_comb_update_gain(verb_comb_filter* vcf, float gain);
