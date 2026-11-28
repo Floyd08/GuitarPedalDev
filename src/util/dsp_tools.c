@@ -252,14 +252,23 @@ void ap_update_gain(allpass_filter* apf, float gain) {
 }
 
 // comb filters
-void verb_comb_init(verb_comb_filter* vcf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float lpf_centre, float gain) {
+int verb_comb_init(verb_comb_filter* vcf, unsigned int length_ms, unsigned int dl_length, int sample_rate, float lpf_centre, float gain) {
+
+	int rb_create = 1;
+	float s_rate = (float)sample_rate;
 
 	vcf->vc_delay_ms = length_ms;
-	vcf->vc_delay_samples = lroundf(length_ms * (sample_rate / 1000));
-
-	r_buffer_init(&vcf->vc_buffer, dl_length);
+	vcf->vc_delay_samples = lroundf(length_ms * (s_rate / 1000.0f));
 	vcf->comb_gain = gain;
-	vcf->lpf = op_new(LOWPASS, lpf_centre, UNITY_GAIN, sample_rate);
+
+	vcf->lpf = op_new(OP_LOWPASS, lpf_centre, UNITY_GAIN, sample_rate);
+	if (vcf->vc_delay_samples < 1 || vcf->vc_delay_samples > dl_length || vcf->lpf == NULL) {
+		return 1;
+	}
+
+	rb_create = r_buffer_init(&vcf->vc_buffer, dl_length);
+
+	return rb_create;
 }
 
 void verb_comb_free(verb_comb_filter* vcf) {
