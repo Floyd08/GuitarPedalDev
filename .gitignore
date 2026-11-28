@@ -24,5 +24,6 @@ pedal_processor.exe
 *.exe
 *.dll
 build/
+build-asan/
  
  

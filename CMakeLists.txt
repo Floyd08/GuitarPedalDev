@@ -1,6 +1,19 @@
 cmake_minimum_required(VERSION 3.20)
 project(GuitarPedalDev LANGUAGES C CXX)
 
+
+# --- options
+option(ENABLE_SANITIZERS "Build with AddressSanitizer and UndefinedBehavourSanitizer" OFF)
+
+if(ENABLE_SANITIZERS AND MINGW)
+    message(FATAL_ERROR "Sanitizers aren't supported with MinGW; use the Linux CI build or WSL")
+endif()
+
+if(ENABLE_SANITIZERS)
+	add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -g)
+	add_link_options(-fsanitize=address,undefined)
+endif()
+
 include(FetchContent)
 
 
@@ -12,7 +25,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(unity)
 
 enable_testing()
-
 
 # --- libraries
 add_library(dsp_lib STATIC)
